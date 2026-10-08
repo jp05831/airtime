@@ -1,0 +1,58 @@
+{
+  "name": "airtime",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --hostname 127.0.0.1 --port 3200",
+    "build": "next build",
+    "start": "next start --hostname 127.0.0.1 --port 3200",
+    "test": "vitest run",
+    "lint": "eslint app components lib scripts tests instrumentation.ts",
+    "typecheck": "tsc --noEmit --incremental false",
+    "db:migrate": "tsx --env-file=.env.local scripts/migrate.ts",
+    "worker": "tsx --env-file=.env.local scripts/worker.ts",
+    "vibe:advertisers": "tsx --env-file=.env.local scripts/vibe-advertisers.ts",
+    "check:client": "node scripts/client-check.mjs"
+  },
+  "dependencies": {
+    "@ffprobe-installer/ffprobe": "^2.1.2",
+    "@solana/web3.js": "^1.98.4",
+    "@supabase/supabase-js": "^2.0.0",
+    "@tailwindcss/postcss": "^4.3.3",
+    "bs58": "^6.0.0",
+    "lucide-react": "^0.468.0",
+    "next": "^15.5.27",
+    "pg": "^8.21.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tweetnacl": "^1.0.3",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.3.14",
+    "@electric-sql/pglite-socket": "^0.0.22",
+    "@eslint/eslintrc": "^3.3.7",
+    "@playwright/test": "^1.58.0",
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.11.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^15.5.27",
+    "postcss": "^8.4.49",
+    "prettier": "^3.9.9",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.3",
+    "vitest": "^5.0.3"
+  },
+  "overrides": {
+    "next": {
+      "postcss": "^8.5.29"
+    },
+    "jayson": {
+      "uuid": "^11.1.1"
+    }
+  }
+}

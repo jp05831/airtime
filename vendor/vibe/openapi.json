@@ -1,0 +1,5970 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Official Vibe selected endpoint schemas",
+    "version": "2026-06-01"
+  },
+  "paths": {
+    "/strategies/{strategy_id}/actions": {
+      "post": {
+        "operationId": "performStrategyAction",
+        "parameters": [
+          {
+            "name": "strategy_id",
+            "required": true,
+            "in": "path",
+            "description": "Stable identifier of the strategy",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "account_id",
+            "required": false,
+            "in": "query",
+            "description": "Required only for embedded apps.",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StrategyActionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Action performed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Strategy"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missingApiKey": {
+                    "summary": "Missing API key",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Missing API Key",
+                        "status": 400,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  },
+                  "validationError": {
+                    "summary": "Validation error",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Validation error",
+                        "status": 400,
+                        "detail": {
+                          "validation": [
+                            "id must be a string"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidApiKey": {
+                    "summary": "Invalid API key",
+                    "value": {
+                      "error": {
+                        "type": "invalid_token",
+                        "message": "Unauthorized",
+                        "status": 401,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/errors/invalid-token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "insufficientScope": {
+                    "summary": "Missing required scope",
+                    "value": {
+                      "error": {
+                        "type": "insufficient_scope",
+                        "message": "Missing required scope",
+                        "status": 403,
+                        "detail": {
+                          "required": "campaigns:write",
+                          "granted": [
+                            "test"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/reference/oauth2token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Strategy not found"
+          },
+          "409": {
+            "description": "Invalid state transition"
+          },
+          "422": {
+            "description": "Validation failed"
+          }
+        },
+        "summary": "Perform a lifecycle action on a strategy",
+        "tags": [
+          "Strategies"
+        ],
+        "x-rate-limit": {
+          "rps": 2,
+          "rpm": 30
+        },
+        "x-scopes": [
+          "campaigns:write"
+        ],
+        "description": "**Scopes:**\n`campaigns:write`\n<br>*Rate limits*:<br>Burst: `2/s`<br>Steady: `30/m`\n"
+      }
+    },
+    "/reports/{report_id}": {
+      "get": {
+        "description": "Returns the current status of a report. When status is READY, the response includes a pre-signed download_url valid for 24 hours after generation.\n**Scopes:**\n`reporting:read`\n<br>*Rate limits*:<br>Burst: `10/s`<br>Steady: `120/m`\n",
+        "operationId": "getReport",
+        "parameters": [
+          {
+            "name": "report_id",
+            "required": true,
+            "in": "path",
+            "description": "Stable identifier of the report",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Report response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Report"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missingApiKey": {
+                    "summary": "Missing API key",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Missing API Key",
+                        "status": 400,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  },
+                  "validationError": {
+                    "summary": "Validation error",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Validation error",
+                        "status": 400,
+                        "detail": {
+                          "validation": [
+                            "id must be a string"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidApiKey": {
+                    "summary": "Invalid API key",
+                    "value": {
+                      "error": {
+                        "type": "invalid_token",
+                        "message": "Unauthorized",
+                        "status": 401,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/errors/invalid-token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "insufficientScope": {
+                    "summary": "Missing required scope",
+                    "value": {
+                      "error": {
+                        "type": "insufficient_scope",
+                        "message": "Missing required scope",
+                        "status": 403,
+                        "detail": {
+                          "required": "reporting:read",
+                          "granted": [
+                            "test"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/reference/oauth2token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get the status of an async report",
+        "tags": [
+          "Reporting"
+        ],
+        "x-rate-limit": {
+          "rps": 10,
+          "rpm": 120
+        },
+        "x-scopes": [
+          "reporting:read"
+        ]
+      }
+    },
+    "/reports": {
+      "post": {
+        "description": "Creates an asynchronous report and returns the report resource. Poll GET /reports/{report_id} until the report reaches a terminal state.\n**Scopes:**\n`reporting:read`\n<br>*Rate limits*:<br>Burst: `1/s`<br>Steady: `20/m`\n",
+        "operationId": "createReport",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Report accepted for processing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Report"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missingApiKey": {
+                    "summary": "Missing API key",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Missing API Key",
+                        "status": 400,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  },
+                  "validationError": {
+                    "summary": "Validation error",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Validation error",
+                        "status": 400,
+                        "detail": {
+                          "validation": [
+                            "id must be a string"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidApiKey": {
+                    "summary": "Invalid API key",
+                    "value": {
+                      "error": {
+                        "type": "invalid_token",
+                        "message": "Unauthorized",
+                        "status": 401,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/errors/invalid-token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "insufficientScope": {
+                    "summary": "Missing required scope",
+                    "value": {
+                      "error": {
+                        "type": "insufficient_scope",
+                        "message": "Missing required scope",
+                        "status": 403,
+                        "detail": {
+                          "required": "reporting:read",
+                          "granted": [
+                            "test"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/reference/oauth2token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create an async report",
+        "tags": [
+          "Reporting"
+        ],
+        "x-rate-limit": {
+          "rps": 1,
+          "rpm": 20
+        },
+        "x-scopes": [
+          "reporting:read"
+        ]
+      }
+    },
+    "/strategies/{strategy_id}/creatives": {
+      "put": {
+        "operationId": "replaceStrategyCreatives",
+        "parameters": [
+          {
+            "name": "strategy_id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "account_id",
+            "required": false,
+            "in": "query",
+            "description": "Required only for embedded apps.",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplaceStrategyCreatives"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreativeList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missingApiKey": {
+                    "summary": "Missing API key",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Missing API Key",
+                        "status": 400,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  },
+                  "validationError": {
+                    "summary": "Validation error",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Validation error",
+                        "status": 400,
+                        "detail": {
+                          "validation": [
+                            "id must be a string"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidApiKey": {
+                    "summary": "Invalid API key",
+                    "value": {
+                      "error": {
+                        "type": "invalid_token",
+                        "message": "Unauthorized",
+                        "status": 401,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/errors/invalid-token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "insufficientScope": {
+                    "summary": "Missing required scope",
+                    "value": {
+                      "error": {
+                        "type": "insufficient_scope",
+                        "message": "Missing required scope",
+                        "status": 403,
+                        "detail": {
+                          "required": "campaigns:write",
+                          "granted": [
+                            "test"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/reference/oauth2token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Strategy not found"
+          },
+          "422": {
+            "description": "Validation failed (e.g. creative not owned by the strategy advertiser)"
+          }
+        },
+        "summary": "Replace the creatives attached to a strategy",
+        "tags": [
+          "Strategies"
+        ],
+        "x-rate-limit": {
+          "rps": 5,
+          "rpm": 120
+        },
+        "x-scopes": [
+          "campaigns:write"
+        ],
+        "description": "**Scopes:**\n`campaigns:write`\n<br>*Rate limits*:<br>Burst: `5/s`<br>Steady: `120/m`\n"
+      }
+    },
+    "/strategies/{strategy_id}": {
+      "patch": {
+        "operationId": "updateStrategy",
+        "parameters": [
+          {
+            "name": "strategy_id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "account_id",
+            "required": false,
+            "in": "query",
+            "description": "Required only for embedded apps.",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StrategyUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Strategy updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Strategy"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missingApiKey": {
+                    "summary": "Missing API key",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Missing API Key",
+                        "status": 400,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  },
+                  "validationError": {
+                    "summary": "Validation error",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Validation error",
+                        "status": 400,
+                        "detail": {
+                          "validation": [
+                            "id must be a string"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidApiKey": {
+                    "summary": "Invalid API key",
+                    "value": {
+                      "error": {
+                        "type": "invalid_token",
+                        "message": "Unauthorized",
+                        "status": 401,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/errors/invalid-token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "insufficientScope": {
+                    "summary": "Missing required scope",
+                    "value": {
+                      "error": {
+                        "type": "insufficient_scope",
+                        "message": "Missing required scope",
+                        "status": 403,
+                        "detail": {
+                          "required": "campaigns:write",
+                          "granted": [
+                            "test"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/reference/oauth2token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Strategy not found"
+          },
+          "422": {
+            "description": "Validation failed"
+          }
+        },
+        "summary": "Update a strategy",
+        "tags": [
+          "Strategies"
+        ],
+        "x-rate-limit": {
+          "rps": 5,
+          "rpm": 120
+        },
+        "x-scopes": [
+          "campaigns:write"
+        ],
+        "description": "**Scopes:**\n`campaigns:write`\n<br>*Rate limits*:<br>Burst: `5/s`<br>Steady: `120/m`\n"
+      },
+      "get": {
+        "operationId": "getStrategy",
+        "parameters": [
+          {
+            "name": "strategy_id",
+            "required": true,
+            "in": "path",
+            "description": "Stable identifier of the strategy",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "account_id",
+            "required": false,
+            "in": "query",
+            "description": "Required only for embedded apps.",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Strategy"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missingApiKey": {
+                    "summary": "Missing API key",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Missing API Key",
+                        "status": 400,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  },
+                  "validationError": {
+                    "summary": "Validation error",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Validation error",
+                        "status": 400,
+                        "detail": {
+                          "validation": [
+                            "id must be a string"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidApiKey": {
+                    "summary": "Invalid API key",
+                    "value": {
+                      "error": {
+                        "type": "invalid_token",
+                        "message": "Unauthorized",
+                        "status": 401,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/errors/invalid-token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "insufficientScope": {
+                    "summary": "Missing required scope",
+                    "value": {
+                      "error": {
+                        "type": "insufficient_scope",
+                        "message": "Missing required scope",
+                        "status": 403,
+                        "detail": {
+                          "required": "campaigns:read",
+                          "granted": [
+                            "test"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/reference/oauth2token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Strategy not found"
+          }
+        },
+        "summary": "Get a strategy by id",
+        "tags": [
+          "Strategies"
+        ],
+        "x-rate-limit": {
+          "rps": 10,
+          "rpm": 300
+        },
+        "x-scopes": [
+          "campaigns:read"
+        ],
+        "description": "**Scopes:**\n`campaigns:read`\n<br>*Rate limits*:<br>Burst: `10/s`<br>Steady: `300/m`\n"
+      }
+    },
+    "/strategies": {
+      "get": {
+        "operationId": "listStrategies",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 20,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "offset",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "default": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "advertiser_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "active",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "starts_at",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "name": "ends_at",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "name": "account_id",
+            "required": false,
+            "in": "query",
+            "description": "Required only for embedded apps.",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StrategyList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missingApiKey": {
+                    "summary": "Missing API key",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Missing API Key",
+                        "status": 400,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  },
+                  "validationError": {
+                    "summary": "Validation error",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Validation error",
+                        "status": 400,
+                        "detail": {
+                          "validation": [
+                            "id must be a string"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidApiKey": {
+                    "summary": "Invalid API key",
+                    "value": {
+                      "error": {
+                        "type": "invalid_token",
+                        "message": "Unauthorized",
+                        "status": 401,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/errors/invalid-token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "insufficientScope": {
+                    "summary": "Missing required scope",
+                    "value": {
+                      "error": {
+                        "type": "insufficient_scope",
+                        "message": "Missing required scope",
+                        "status": 403,
+                        "detail": {
+                          "required": "campaigns:read",
+                          "granted": [
+                            "test"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/reference/oauth2token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "List strategies",
+        "tags": [
+          "Strategies"
+        ],
+        "x-rate-limit": {
+          "rps": 10,
+          "rpm": 300
+        },
+        "x-scopes": [
+          "campaigns:read"
+        ],
+        "description": "**Scopes:**\n`campaigns:read`\n<br>*Rate limits*:<br>Burst: `10/s`<br>Steady: `300/m`\n"
+      },
+      "post": {
+        "operationId": "createStrategy",
+        "parameters": [
+          {
+            "name": "account_id",
+            "required": false,
+            "in": "query",
+            "description": "Required only for embedded apps.",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StrategyCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Strategy created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Strategy"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missingApiKey": {
+                    "summary": "Missing API key",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Missing API Key",
+                        "status": 400,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  },
+                  "validationError": {
+                    "summary": "Validation error",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Validation error",
+                        "status": 400,
+                        "detail": {
+                          "validation": [
+                            "id must be a string"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidApiKey": {
+                    "summary": "Invalid API key",
+                    "value": {
+                      "error": {
+                        "type": "invalid_token",
+                        "message": "Unauthorized",
+                        "status": 401,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/errors/invalid-token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "insufficientScope": {
+                    "summary": "Missing required scope",
+                    "value": {
+                      "error": {
+                        "type": "insufficient_scope",
+                        "message": "Missing required scope",
+                        "status": 403,
+                        "detail": {
+                          "required": "campaigns:write",
+                          "granted": [
+                            "test"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/reference/oauth2token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Campaign not found"
+          },
+          "422": {
+            "description": "Validation failed"
+          }
+        },
+        "summary": "Create a strategy",
+        "tags": [
+          "Strategies"
+        ],
+        "x-rate-limit": {
+          "rps": 2,
+          "rpm": 60
+        },
+        "x-scopes": [
+          "campaigns:write"
+        ],
+        "description": "**Scopes:**\n`campaigns:write`\n<br>*Rate limits*:<br>Burst: `2/s`<br>Steady: `60/m`\n"
+      }
+    },
+    "/creatives/video": {
+      "post": {
+        "description": "The video must be uploaded first via the presigned URL from `GET /creatives/upload-url`.\n**Scopes:**\n`creatives:write`\n<br>*Rate limits*:<br>Burst: `1/s`<br>Steady: `30/m`\n",
+        "operationId": "createVideoCreative",
+        "parameters": [
+          {
+            "name": "account_id",
+            "required": false,
+            "in": "query",
+            "description": "Required only for embedded apps.",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VideoCreativeCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Creative created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Creative"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Upload is still being transcoded; repeat the request until it returns 201",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreativeProcessing"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missingApiKey": {
+                    "summary": "Missing API key",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Missing API Key",
+                        "status": 400,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  },
+                  "validationError": {
+                    "summary": "Validation error",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Validation error",
+                        "status": 400,
+                        "detail": {
+                          "validation": [
+                            "id must be a string"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidApiKey": {
+                    "summary": "Invalid API key",
+                    "value": {
+                      "error": {
+                        "type": "invalid_token",
+                        "message": "Unauthorized",
+                        "status": 401,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/errors/invalid-token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "insufficientScope": {
+                    "summary": "Missing required scope",
+                    "value": {
+                      "error": {
+                        "type": "insufficient_scope",
+                        "message": "Missing required scope",
+                        "status": 403,
+                        "detail": {
+                          "required": "creatives:write",
+                          "granted": [
+                            "test"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/reference/oauth2token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Advertiser or upload not found"
+          },
+          "422": {
+            "description": "Validation failed"
+          }
+        },
+        "summary": "Create a video creative",
+        "tags": [
+          "Creatives"
+        ],
+        "x-rate-limit": {
+          "rps": 1,
+          "rpm": 30
+        },
+        "x-scopes": [
+          "creatives:write"
+        ]
+      }
+    },
+    "/creatives/upload-url": {
+      "get": {
+        "description": "Returns a presigned S3 POST target. Upload the video by issuing a multipart POST to `upload_url` with every entry of `fields` and a `file` field containing the file. Then pass the returned `upload_id` to `POST /creatives/video` to register the creative.\n**Scopes:**\n`creatives:write`\n<br>*Rate limits*:<br>Burst: `5/s`<br>Steady: `60/m`\n",
+        "operationId": "getCreativeUploadUrl",
+        "parameters": [
+          {
+            "name": "advertiser_id",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "account_id",
+            "required": false,
+            "in": "query",
+            "description": "Required only for embedded apps.",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Presigned URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreativeUploadUrl"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missingApiKey": {
+                    "summary": "Missing API key",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Missing API Key",
+                        "status": 400,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  },
+                  "validationError": {
+                    "summary": "Validation error",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Validation error",
+                        "status": 400,
+                        "detail": {
+                          "validation": [
+                            "id must be a string"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidApiKey": {
+                    "summary": "Invalid API key",
+                    "value": {
+                      "error": {
+                        "type": "invalid_token",
+                        "message": "Unauthorized",
+                        "status": 401,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/errors/invalid-token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "insufficientScope": {
+                    "summary": "Missing required scope",
+                    "value": {
+                      "error": {
+                        "type": "insufficient_scope",
+                        "message": "Missing required scope",
+                        "status": 403,
+                        "detail": {
+                          "required": "creatives:write",
+                          "granted": [
+                            "test"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/reference/oauth2token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Advertiser not found"
+          }
+        },
+        "summary": "Get presigned upload URL for a video asset",
+        "tags": [
+          "Creatives"
+        ],
+        "x-rate-limit": {
+          "rps": 5,
+          "rpm": 60
+        },
+        "x-scopes": [
+          "creatives:write"
+        ]
+      }
+    },
+    "/creatives": {
+      "get": {
+        "operationId": "listCreatives",
+        "parameters": [
+          {
+            "name": "advertiser_id",
+            "required": false,
+            "in": "query",
+            "description": "Filter by advertiser UUID",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Maximum number of creatives to return",
+            "schema": {
+              "minimum": 1,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "offset",
+            "required": false,
+            "in": "query",
+            "description": "Number of creatives to skip",
+            "schema": {
+              "minimum": 0,
+              "default": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "account_id",
+            "required": false,
+            "in": "query",
+            "description": "Required only for embedded apps.",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Creative list response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreativeList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missingApiKey": {
+                    "summary": "Missing API key",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Missing API Key",
+                        "status": 400,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  },
+                  "validationError": {
+                    "summary": "Validation error",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Validation error",
+                        "status": 400,
+                        "detail": {
+                          "validation": [
+                            "id must be a string"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidApiKey": {
+                    "summary": "Invalid API key",
+                    "value": {
+                      "error": {
+                        "type": "invalid_token",
+                        "message": "Unauthorized",
+                        "status": 401,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/errors/invalid-token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "insufficientScope": {
+                    "summary": "Missing required scope",
+                    "value": {
+                      "error": {
+                        "type": "insufficient_scope",
+                        "message": "Missing required scope",
+                        "status": 403,
+                        "detail": {
+                          "required": "creatives:read",
+                          "granted": [
+                            "test"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/reference/oauth2token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "List creatives",
+        "tags": [
+          "Creatives"
+        ],
+        "x-rate-limit": {
+          "rps": 10,
+          "rpm": 300
+        },
+        "x-scopes": [
+          "creatives:read"
+        ],
+        "description": "**Scopes:**\n`creatives:read`\n<br>*Rate limits*:<br>Burst: `10/s`<br>Steady: `300/m`\n"
+      }
+    },
+    "/segments/ages": {
+      "get": {
+        "description": "Returns all age ranges available for strategy targeting.\n**Scopes:**\n`campaigns:read`\n<br>*Rate limits*:<br>Burst: `20/s`<br>Steady: `600/m`\n",
+        "operationId": "listAgeRanges",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Age range list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgeRangeList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missingApiKey": {
+                    "summary": "Missing API key",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Missing API Key",
+                        "status": 400,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  },
+                  "validationError": {
+                    "summary": "Validation error",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Validation error",
+                        "status": 400,
+                        "detail": {
+                          "validation": [
+                            "id must be a string"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidApiKey": {
+                    "summary": "Invalid API key",
+                    "value": {
+                      "error": {
+                        "type": "invalid_token",
+                        "message": "Unauthorized",
+                        "status": 401,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/errors/invalid-token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "insufficientScope": {
+                    "summary": "Missing required scope",
+                    "value": {
+                      "error": {
+                        "type": "insufficient_scope",
+                        "message": "Missing required scope",
+                        "status": 403,
+                        "detail": {
+                          "required": "campaigns:read",
+                          "granted": [
+                            "test"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/reference/oauth2token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "List targetable age ranges",
+        "tags": [
+          "Reference Data"
+        ],
+        "x-rate-limit": {
+          "rps": 20,
+          "rpm": 600
+        },
+        "x-scopes": [
+          "campaigns:read"
+        ]
+      }
+    },
+    "/catalog/devices": {
+      "get": {
+        "description": "Returns the complete list of devices available for strategy targeting.\n**Scopes:**\n`campaigns:read`\n<br>*Rate limits*:<br>Burst: `20/s`<br>Steady: `600/m`\n",
+        "operationId": "listDevices",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Device list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missingApiKey": {
+                    "summary": "Missing API key",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Missing API Key",
+                        "status": 400,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  },
+                  "validationError": {
+                    "summary": "Validation error",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Validation error",
+                        "status": 400,
+                        "detail": {
+                          "validation": [
+                            "id must be a string"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidApiKey": {
+                    "summary": "Invalid API key",
+                    "value": {
+                      "error": {
+                        "type": "invalid_token",
+                        "message": "Unauthorized",
+                        "status": 401,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/errors/invalid-token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "insufficientScope": {
+                    "summary": "Missing required scope",
+                    "value": {
+                      "error": {
+                        "type": "insufficient_scope",
+                        "message": "Missing required scope",
+                        "status": 403,
+                        "detail": {
+                          "required": "campaigns:read",
+                          "granted": [
+                            "test"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/reference/oauth2token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "List targetable devices",
+        "tags": [
+          "Reference Data"
+        ],
+        "x-rate-limit": {
+          "rps": 20,
+          "rpm": 600
+        },
+        "x-scopes": [
+          "campaigns:read"
+        ]
+      }
+    },
+    "/geo/locations": {
+      "get": {
+        "description": "Returns geographic locations available for strategy targeting. Provide `type` to browse all locations of a single type (with pagination). Provide `search` (min 2 chars) to search across all types. At least one of `type` or `search` is required.\n**Scopes:**\n`campaigns:read`\n<br>*Rate limits*:<br>Burst: `10/s`<br>Steady: `300/m`\n",
+        "operationId": "listGeoLocations",
+        "parameters": [
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "description": "Filter by location type. When provided, search is optional and returns all rows of that type if omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "REGION",
+                "METRO",
+                "CITY",
+                "ZIPCODE",
+                "COUNTY",
+                "CONGRESSIONAL_DISTRICT"
+              ]
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "Case-insensitive label search (minimum 2 characters). Required when type is not provided. In fan-out mode (no type), offset is ignored and results span all location types.",
+            "schema": {
+              "minLength": 2,
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Maximum number of results to return",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "offset",
+            "required": false,
+            "in": "query",
+            "description": "Number of results to skip (single-type mode only)",
+            "schema": {
+              "minimum": 0,
+              "default": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "deprecated",
+            "required": false,
+            "in": "query",
+            "description": "Include deprecated locations (REGION and CITY only). Defaults to false.",
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Geographic location list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeoLocationList"
+                },
+                "examples": {
+                  "region": {
+                    "summary": "Region",
+                    "value": {
+                      "data": [
+                        {
+                          "id": "USA/NY",
+                          "label": "New York",
+                          "reach": 7009535,
+                          "type": "REGION"
+                        }
+                      ],
+                      "total": 1,
+                      "limit": 20,
+                      "offset": 0
+                    }
+                  },
+                  "metro": {
+                    "summary": "Metro code",
+                    "value": {
+                      "data": [
+                        {
+                          "id": "501",
+                          "label": "501, New York, NY",
+                          "reach": 8000000,
+                          "type": "METRO"
+                        }
+                      ],
+                      "total": 1,
+                      "limit": 20,
+                      "offset": 0
+                    }
+                  },
+                  "city": {
+                    "summary": "City",
+                    "value": {
+                      "data": [
+                        {
+                          "id": "SRCH/CITY1",
+                          "label": "East New York, NY",
+                          "reach": 500000,
+                          "type": "CITY"
+                        }
+                      ],
+                      "total": 1,
+                      "limit": 20,
+                      "offset": 0
+                    }
+                  },
+                  "zipcode": {
+                    "summary": "Zipcode",
+                    "value": {
+                      "data": [
+                        {
+                          "id": "10001",
+                          "label": "10001, New York, NY",
+                          "reach": 5432,
+                          "type": "ZIPCODE"
+                        }
+                      ],
+                      "total": 1,
+                      "limit": 20,
+                      "offset": 0
+                    }
+                  },
+                  "county": {
+                    "summary": "County",
+                    "value": {
+                      "data": [
+                        {
+                          "id": "CTY/1",
+                          "label": "Albany County, NY",
+                          "reach": 300000,
+                          "type": "COUNTY"
+                        }
+                      ],
+                      "total": 1,
+                      "limit": 20,
+                      "offset": 0
+                    }
+                  },
+                  "congressionalDistrict": {
+                    "summary": "Congressional district",
+                    "value": {
+                      "data": [
+                        {
+                          "id": "550e8400-e29b-41d4-a716-446655440000",
+                          "label": "NY-01 - New York's 1st congressional district",
+                          "reach": 750000,
+                          "type": "CONGRESSIONAL_DISTRICT"
+                        }
+                      ],
+                      "total": 1,
+                      "limit": 20,
+                      "offset": 0
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missingApiKey": {
+                    "summary": "Missing API key",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Missing API Key",
+                        "status": 400,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  },
+                  "validationError": {
+                    "summary": "Validation error",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Validation error",
+                        "status": 400,
+                        "detail": {
+                          "validation": [
+                            "id must be a string"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidApiKey": {
+                    "summary": "Invalid API key",
+                    "value": {
+                      "error": {
+                        "type": "invalid_token",
+                        "message": "Unauthorized",
+                        "status": 401,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/errors/invalid-token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "insufficientScope": {
+                    "summary": "Missing required scope",
+                    "value": {
+                      "error": {
+                        "type": "insufficient_scope",
+                        "message": "Missing required scope",
+                        "status": 403,
+                        "detail": {
+                          "required": "campaigns:read",
+                          "granted": [
+                            "test"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/reference/oauth2token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Search geographic locations for targeting",
+        "tags": [
+          "Reference Data"
+        ],
+        "x-rate-limit": {
+          "rps": 10,
+          "rpm": 300
+        },
+        "x-scopes": [
+          "campaigns:read"
+        ]
+      }
+    },
+    "/campaigns/{campaign_id}/publish": {
+      "post": {
+        "operationId": "publishCampaign",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "account_id",
+            "required": false,
+            "in": "query",
+            "description": "Required only for embedded apps.",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Campaign published",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Campaign"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missingApiKey": {
+                    "summary": "Missing API key",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Missing API Key",
+                        "status": 400,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  },
+                  "validationError": {
+                    "summary": "Validation error",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Validation error",
+                        "status": 400,
+                        "detail": {
+                          "validation": [
+                            "id must be a string"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidApiKey": {
+                    "summary": "Invalid API key",
+                    "value": {
+                      "error": {
+                        "type": "invalid_token",
+                        "message": "Unauthorized",
+                        "status": 401,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/errors/invalid-token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "insufficientScope": {
+                    "summary": "Missing required scope",
+                    "value": {
+                      "error": {
+                        "type": "insufficient_scope",
+                        "message": "Missing required scope",
+                        "status": 403,
+                        "detail": {
+                          "required": "campaigns:publish",
+                          "granted": [
+                            "test"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/reference/oauth2token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Campaign not found"
+          },
+          "422": {
+            "description": "Validation failed (includes invalid state transitions)"
+          }
+        },
+        "summary": "Publish a campaign",
+        "tags": [
+          "Campaigns"
+        ],
+        "x-rate-limit": {
+          "rps": 2,
+          "rpm": 30
+        },
+        "x-scopes": [
+          "campaigns:publish"
+        ],
+        "description": "**Scopes:**\n`campaigns:publish`\n<br>*Rate limits*:<br>Burst: `2/s`<br>Steady: `30/m`\n"
+      }
+    },
+    "/campaigns/{campaign_id}": {
+      "patch": {
+        "operationId": "updateCampaign",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "account_id",
+            "required": false,
+            "in": "query",
+            "description": "Required only for embedded apps.",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CampaignUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Campaign updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Campaign"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missingApiKey": {
+                    "summary": "Missing API key",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Missing API Key",
+                        "status": 400,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  },
+                  "validationError": {
+                    "summary": "Validation error",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Validation error",
+                        "status": 400,
+                        "detail": {
+                          "validation": [
+                            "id must be a string"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidApiKey": {
+                    "summary": "Invalid API key",
+                    "value": {
+                      "error": {
+                        "type": "invalid_token",
+                        "message": "Unauthorized",
+                        "status": 401,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/errors/invalid-token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "insufficientScope": {
+                    "summary": "Missing required scope",
+                    "value": {
+                      "error": {
+                        "type": "insufficient_scope",
+                        "message": "Missing required scope",
+                        "status": 403,
+                        "detail": {
+                          "required": "campaigns:write",
+                          "granted": [
+                            "test"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/reference/oauth2token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Campaign not found"
+          },
+          "422": {
+            "description": "Validation failed"
+          }
+        },
+        "summary": "Update a campaign",
+        "tags": [
+          "Campaigns"
+        ],
+        "x-rate-limit": {
+          "rps": 5,
+          "rpm": 120
+        },
+        "x-scopes": [
+          "campaigns:write"
+        ],
+        "description": "**Scopes:**\n`campaigns:write`\n<br>*Rate limits*:<br>Burst: `5/s`<br>Steady: `120/m`\n"
+      },
+      "get": {
+        "operationId": "getCampaign",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "account_id",
+            "required": false,
+            "in": "query",
+            "description": "Required only for embedded apps.",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Campaign"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missingApiKey": {
+                    "summary": "Missing API key",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Missing API Key",
+                        "status": 400,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  },
+                  "validationError": {
+                    "summary": "Validation error",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Validation error",
+                        "status": 400,
+                        "detail": {
+                          "validation": [
+                            "id must be a string"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidApiKey": {
+                    "summary": "Invalid API key",
+                    "value": {
+                      "error": {
+                        "type": "invalid_token",
+                        "message": "Unauthorized",
+                        "status": 401,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/errors/invalid-token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "insufficientScope": {
+                    "summary": "Missing required scope",
+                    "value": {
+                      "error": {
+                        "type": "insufficient_scope",
+                        "message": "Missing required scope",
+                        "status": 403,
+                        "detail": {
+                          "required": "campaigns:read",
+                          "granted": [
+                            "test"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/reference/oauth2token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Campaign not found"
+          }
+        },
+        "summary": "Get a campaign by id",
+        "tags": [
+          "Campaigns"
+        ],
+        "x-rate-limit": {
+          "rps": 10,
+          "rpm": 300
+        },
+        "x-scopes": [
+          "campaigns:read"
+        ],
+        "description": "**Scopes:**\n`campaigns:read`\n<br>*Rate limits*:<br>Burst: `10/s`<br>Steady: `300/m`\n"
+      }
+    },
+    "/campaigns": {
+      "get": {
+        "operationId": "listCampaigns",
+        "parameters": [
+          {
+            "name": "id",
+            "required": false,
+            "in": "query",
+            "description": "Filter by campaign UUID",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "advertiser_id",
+            "required": false,
+            "in": "query",
+            "description": "Filter by advertiser UUID",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Filter by campaign status. Repeat the parameter to combine values.",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "DRAFT",
+                  "UPCOMING_OR_DELIVERING",
+                  "PAUSED",
+                  "ARCHIVED",
+                  "COMPLETED",
+                  "BLOCKED"
+                ]
+              }
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "Search by campaign name (case-insensitive contains)",
+            "schema": {
+              "minLength": 2,
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Maximum number of campaigns to return",
+            "schema": {
+              "minimum": 1,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "offset",
+            "required": false,
+            "in": "query",
+            "description": "Number of campaigns to skip",
+            "schema": {
+              "minimum": 0,
+              "default": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "account_id",
+            "required": false,
+            "in": "query",
+            "description": "Required only for embedded apps.",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Campaign list response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missingApiKey": {
+                    "summary": "Missing API key",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Missing API Key",
+                        "status": 400,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  },
+                  "validationError": {
+                    "summary": "Validation error",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Validation error",
+                        "status": 400,
+                        "detail": {
+                          "validation": [
+                            "id must be a string"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidApiKey": {
+                    "summary": "Invalid API key",
+                    "value": {
+                      "error": {
+                        "type": "invalid_token",
+                        "message": "Unauthorized",
+                        "status": 401,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/errors/invalid-token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "insufficientScope": {
+                    "summary": "Missing required scope",
+                    "value": {
+                      "error": {
+                        "type": "insufficient_scope",
+                        "message": "Missing required scope",
+                        "status": 403,
+                        "detail": {
+                          "required": "campaigns:read",
+                          "granted": [
+                            "test"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/reference/oauth2token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "List campaigns",
+        "tags": [
+          "Campaigns"
+        ],
+        "x-rate-limit": {
+          "rps": 10,
+          "rpm": 300
+        },
+        "x-scopes": [
+          "campaigns:read"
+        ],
+        "description": "**Scopes:**\n`campaigns:read`\n<br>*Rate limits*:<br>Burst: `10/s`<br>Steady: `300/m`\n"
+      },
+      "post": {
+        "operationId": "createCampaign",
+        "parameters": [
+          {
+            "name": "account_id",
+            "required": false,
+            "in": "query",
+            "description": "Required only for embedded apps.",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CampaignCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Campaign created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Campaign"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missingApiKey": {
+                    "summary": "Missing API key",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Missing API Key",
+                        "status": 400,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  },
+                  "validationError": {
+                    "summary": "Validation error",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Validation error",
+                        "status": 400,
+                        "detail": {
+                          "validation": [
+                            "id must be a string"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidApiKey": {
+                    "summary": "Invalid API key",
+                    "value": {
+                      "error": {
+                        "type": "invalid_token",
+                        "message": "Unauthorized",
+                        "status": 401,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/errors/invalid-token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "insufficientScope": {
+                    "summary": "Missing required scope",
+                    "value": {
+                      "error": {
+                        "type": "insufficient_scope",
+                        "message": "Missing required scope",
+                        "status": 403,
+                        "detail": {
+                          "required": "campaigns:write",
+                          "granted": [
+                            "test"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/reference/oauth2token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed"
+          }
+        },
+        "summary": "Create a campaign",
+        "tags": [
+          "Campaigns"
+        ],
+        "x-rate-limit": {
+          "rps": 2,
+          "rpm": 60
+        },
+        "x-scopes": [
+          "campaigns:write"
+        ],
+        "description": "**Scopes:**\n`campaigns:write`\n<br>*Rate limits*:<br>Burst: `2/s`<br>Steady: `60/m`\n"
+      }
+    },
+    "/billing/balance": {
+      "get": {
+        "description": "Returns the current balance in cents for the authenticated account. This is the authoritative figure for what is owed; it is read from a running total, not summed from the operations list, so the two are not expected to match exactly.\n**Scopes:**\n`billing:read`\n<br>*Rate limits*:<br>Burst: `10/s`<br>Steady: `300/m`\n",
+        "operationId": "getAccountBalance",
+        "parameters": [
+          {
+            "name": "account_id",
+            "required": false,
+            "in": "query",
+            "description": "Required only for embedded apps.",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Account balance",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Balance"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missingApiKey": {
+                    "summary": "Missing API key",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Missing API Key",
+                        "status": 400,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  },
+                  "validationError": {
+                    "summary": "Validation error",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Validation error",
+                        "status": 400,
+                        "detail": {
+                          "validation": [
+                            "id must be a string"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidApiKey": {
+                    "summary": "Invalid API key",
+                    "value": {
+                      "error": {
+                        "type": "invalid_token",
+                        "message": "Unauthorized",
+                        "status": 401,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/errors/invalid-token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "insufficientScope": {
+                    "summary": "Missing required scope",
+                    "value": {
+                      "error": {
+                        "type": "insufficient_scope",
+                        "message": "Missing required scope",
+                        "status": 403,
+                        "detail": {
+                          "required": "billing:read",
+                          "granted": [
+                            "test"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/reference/oauth2token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get account balance",
+        "tags": [
+          "Billing"
+        ],
+        "x-rate-limit": {
+          "rps": 10,
+          "rpm": 300
+        },
+        "x-scopes": [
+          "billing:read"
+        ]
+      }
+    },
+    "/advertisers": {
+      "post": {
+        "operationId": "createAdvertiser",
+        "parameters": [
+          {
+            "name": "account_id",
+            "required": false,
+            "in": "query",
+            "description": "Required only for embedded apps.",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdvertiserCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Advertiser created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Advertiser"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missingApiKey": {
+                    "summary": "Missing API key",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Missing API Key",
+                        "status": 400,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  },
+                  "validationError": {
+                    "summary": "Validation error",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Validation error",
+                        "status": 400,
+                        "detail": {
+                          "validation": [
+                            "id must be a string"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidApiKey": {
+                    "summary": "Invalid API key",
+                    "value": {
+                      "error": {
+                        "type": "invalid_token",
+                        "message": "Unauthorized",
+                        "status": 401,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/errors/invalid-token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "insufficientScope": {
+                    "summary": "Missing required scope",
+                    "value": {
+                      "error": {
+                        "type": "insufficient_scope",
+                        "message": "Missing required scope",
+                        "status": 403,
+                        "detail": {
+                          "required": "advertisers:write",
+                          "granted": [
+                            "test"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/reference/oauth2token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create an advertiser",
+        "tags": [
+          "Advertisers"
+        ],
+        "x-rate-limit": {
+          "rps": 2,
+          "rpm": 60
+        },
+        "x-scopes": [
+          "advertisers:write"
+        ],
+        "description": "**Scopes:**\n`advertisers:write`\n<br>*Rate limits*:<br>Burst: `2/s`<br>Steady: `60/m`\n"
+      },
+      "get": {
+        "operationId": "listAdvertisers",
+        "parameters": [
+          {
+            "name": "id",
+            "required": false,
+            "in": "query",
+            "description": "Filter by advertiser UUID",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "required": false,
+            "in": "query",
+            "description": "Filter by name (case-insensitive contains)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "url",
+            "required": false,
+            "in": "query",
+            "description": "Filter by URL (case-insensitive contains)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Maximum number of advertisers to return",
+            "schema": {
+              "minimum": 1,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "offset",
+            "required": false,
+            "in": "query",
+            "description": "Number of advertisers to skip",
+            "schema": {
+              "minimum": 0,
+              "default": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "account_id",
+            "required": false,
+            "in": "query",
+            "description": "Required only for embedded apps.",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Advertiser list response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdvertiserList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missingApiKey": {
+                    "summary": "Missing API key",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Missing API Key",
+                        "status": 400,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  },
+                  "validationError": {
+                    "summary": "Validation error",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Validation error",
+                        "status": 400,
+                        "detail": {
+                          "validation": [
+                            "id must be a string"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidApiKey": {
+                    "summary": "Invalid API key",
+                    "value": {
+                      "error": {
+                        "type": "invalid_token",
+                        "message": "Unauthorized",
+                        "status": 401,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/errors/invalid-token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "insufficientScope": {
+                    "summary": "Missing required scope",
+                    "value": {
+                      "error": {
+                        "type": "insufficient_scope",
+                        "message": "Missing required scope",
+                        "status": 403,
+                        "detail": {
+                          "required": "advertisers:read",
+                          "granted": [
+                            "test"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/reference/oauth2token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "List advertisers",
+        "tags": [
+          "Advertisers"
+        ],
+        "x-rate-limit": {
+          "rps": 10,
+          "rpm": 300
+        },
+        "x-scopes": [
+          "advertisers:read"
+        ],
+        "description": "**Scopes:**\n`advertisers:read`\n<br>*Rate limits*:<br>Burst: `10/s`<br>Steady: `300/m`\n"
+      }
+    },
+    "/advertisers/{advertiser_id}": {
+      "get": {
+        "operationId": "getAdvertiser",
+        "parameters": [
+          {
+            "name": "advertiser_id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "account_id",
+            "required": false,
+            "in": "query",
+            "description": "Required only for embedded apps.",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Advertiser response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Advertiser"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missingApiKey": {
+                    "summary": "Missing API key",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Missing API Key",
+                        "status": 400,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  },
+                  "validationError": {
+                    "summary": "Validation error",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Validation error",
+                        "status": 400,
+                        "detail": {
+                          "validation": [
+                            "id must be a string"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidApiKey": {
+                    "summary": "Invalid API key",
+                    "value": {
+                      "error": {
+                        "type": "invalid_token",
+                        "message": "Unauthorized",
+                        "status": 401,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/errors/invalid-token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "insufficientScope": {
+                    "summary": "Missing required scope",
+                    "value": {
+                      "error": {
+                        "type": "insufficient_scope",
+                        "message": "Missing required scope",
+                        "status": 403,
+                        "detail": {
+                          "required": "advertisers:read",
+                          "granted": [
+                            "test"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/reference/oauth2token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Advertiser not found"
+          }
+        },
+        "summary": "Get an advertiser",
+        "tags": [
+          "Advertisers"
+        ],
+        "x-rate-limit": {
+          "rps": 20,
+          "rpm": 600
+        },
+        "x-scopes": [
+          "advertisers:read"
+        ],
+        "description": "**Scopes:**\n`advertisers:read`\n<br>*Rate limits*:<br>Burst: `20/s`<br>Steady: `600/m`\n"
+      }
+    },
+    "/accounts": {
+      "get": {
+        "operationId": "listAccounts",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Account list response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Account"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missingApiKey": {
+                    "summary": "Missing API key",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Missing API Key",
+                        "status": 400,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  },
+                  "validationError": {
+                    "summary": "Validation error",
+                    "value": {
+                      "error": {
+                        "type": "validation",
+                        "message": "Validation error",
+                        "status": 400,
+                        "detail": {
+                          "validation": [
+                            "id must be a string"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalidApiKey": {
+                    "summary": "Invalid API key",
+                    "value": {
+                      "error": {
+                        "type": "invalid_token",
+                        "message": "Unauthorized",
+                        "status": 401,
+                        "detail": null,
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/errors/invalid-token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "insufficientScope": {
+                    "summary": "Missing required scope",
+                    "value": {
+                      "error": {
+                        "type": "insufficient_scope",
+                        "message": "Missing required scope",
+                        "status": 403,
+                        "detail": {
+                          "required": "account:read",
+                          "granted": [
+                            "test"
+                          ]
+                        },
+                        "request_id": "req_8f3a4b2c",
+                        "doc_url": "https://developers.vibe.co/reference/oauth2token"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "List accounts",
+        "tags": [
+          "Accounts"
+        ],
+        "x-rate-limit": {
+          "rps": 10,
+          "rpm": 300
+        },
+        "x-scopes": [
+          "account:read"
+        ],
+        "description": "**Scopes:**\n`account:read`\n<br>*Rate limits*:<br>Burst: `10/s`<br>Steady: `300/m`\n"
+      }
+    },
+    "/oauth2/token": {
+      "post": {
+        "operationId": "oauth2Token",
+        "tags": [
+          "OAuth"
+        ],
+        "summary": "Exchange credentials for an access token",
+        "description": "Token endpoint used by both the Authorization Code grant and the Client\nCredentials grant. The client authenticates with HTTP Basic using its\n`client_id` and `client_secret` per RFC 6749 \u00a72.3.1.\n\nThe `X-Vibe-Revision` header is **not** required on this endpoint.\n\n### Example: client_credentials grant\n\n```bash\ncurl -sX POST https://api.vibe.co/oauth2/token \\\n  -u \"$CLIENT_ID:$CLIENT_SECRET\" \\\n  --data-urlencode \"grant_type=client_credentials\" \\\n  --data-urlencode \"scope=account:read account:write advertisers:read advertisers:write audiences:read audiences:write campaigns:read campaigns:write creatives:read creatives:write impression_tracking:read impression_tracking:write reporting:read\"\n```\n\nThe `scope` parameter is optional. If omitted, the token is issued with\nall scopes available to the client.\n",
+        "security": [
+          {
+            "clientSecretBasic": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/AuthorizationCodeTokenRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ClientCredentialsTokenRequest"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "grant_type",
+                  "mapping": {
+                    "authorization_code": "#/components/schemas/AuthorizationCodeTokenRequest",
+                    "client_credentials": "#/components/schemas/ClientCredentialsTokenRequest"
+                  }
+                }
+              },
+              "examples": {
+                "authorizationCode": {
+                  "summary": "authorization_code grant",
+                  "value": {
+                    "grant_type": "authorization_code",
+                    "code": "authorization-code-from-callback",
+                    "redirect_uri": "https://your-app.example.com/callback"
+                  }
+                },
+                "clientCredentials": {
+                  "summary": "client_credentials grant",
+                  "value": {
+                    "grant_type": "client_credentials",
+                    "scope": "account:read account:write advertisers:read advertisers:write audiences:read audiences:write campaigns:read campaigns:write creatives:read creatives:write impression_tracking:read impression_tracking:write reporting:read"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token issued.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid grant, invalid request, or unsupported scope. Returns the standard OAuth 2.0 error envelope, not Vibe's `ErrorResponse`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Client authentication failed. Returns the standard OAuth 2.0 error envelope, not Vibe's `ErrorResponse`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ErrorDetail": {
+        "type": "object",
+        "properties": {
+          "required": {
+            "type": "string",
+            "example": "audiences:write"
+          },
+          "granted": {
+            "example": [
+              "audiences:read",
+              "reporting:read"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "required",
+          "granted"
+        ]
+      },
+      "ApiError": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "insufficient_scope",
+              "invalid_token",
+              "validation",
+              "internal_error"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "status": {
+            "type": "number",
+            "example": 403
+          },
+          "detail": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ErrorDetail"
+              }
+            ]
+          },
+          "request_id": {
+            "type": "string",
+            "example": "req_8f3a4b2c"
+          },
+          "doc_url": {
+            "type": "string",
+            "example": "https://developers.vibe.co/reference/oauth2token",
+            "nullable": true
+          }
+        },
+        "required": [
+          "type",
+          "message",
+          "status",
+          "request_id"
+        ]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "StrategyState": {
+        "type": "string",
+        "enum": [
+          "AUTHORIZED",
+          "BLOCKED",
+          "PENDING_REVIEW"
+        ]
+      },
+      "BudgetType": {
+        "type": "string",
+        "enum": [
+          "DAILY",
+          "GLOBAL"
+        ]
+      },
+      "IncludeExcludeList": {
+        "type": "object",
+        "properties": {
+          "include": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "exclude": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "GeoTargeting": {
+        "type": "object",
+        "properties": {
+          "regions": {
+            "$ref": "#/components/schemas/IncludeExcludeList"
+          },
+          "cities": {
+            "$ref": "#/components/schemas/IncludeExcludeList"
+          },
+          "metro_codes": {
+            "$ref": "#/components/schemas/IncludeExcludeList"
+          },
+          "zip_codes": {
+            "$ref": "#/components/schemas/IncludeExcludeList"
+          }
+        }
+      },
+      "TvInventoryType": {
+        "type": "string",
+        "enum": [
+          "APPS_AND_CHANNELS",
+          "LIVE_SPORTS"
+        ]
+      },
+      "InventoryTargeting": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TvInventoryType"
+              }
+            ]
+          },
+          "include": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "exclude": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "TargetingAgeRange": {
+        "type": "string",
+        "enum": [
+          "RANGE_18_20",
+          "RANGE_21_24",
+          "RANGE_25_34",
+          "RANGE_35_44",
+          "RANGE_45_54",
+          "RANGE_55_64",
+          "RANGE_65_MORE"
+        ]
+      },
+      "TargetingGender": {
+        "type": "string",
+        "enum": [
+          "MALE",
+          "FEMALE"
+        ]
+      },
+      "TargetingDevice": {
+        "type": "string",
+        "enum": [
+          "TV",
+          "TABLET",
+          "MOBILE"
+        ]
+      },
+      "IncludeExcludeUuid": {
+        "type": "object",
+        "properties": {
+          "include": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "exclude": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      "AudienceTargeting": {
+        "type": "object",
+        "properties": {
+          "upload": {
+            "$ref": "#/components/schemas/IncludeExcludeUuid"
+          }
+        }
+      },
+      "TimeRangePreset": {
+        "type": "string",
+        "enum": [
+          "CUSTOM",
+          "ANY_TIME_ANY_DAY",
+          "PRIMETIME",
+          "AFTER_WORK",
+          "WORK_HOURS",
+          "SLEEPING_TIME",
+          "WEEKEND",
+          "WORK_DAYS"
+        ]
+      },
+      "DaypartingRange": {
+        "type": "object",
+        "properties": {
+          "start": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10079
+          },
+          "end": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10079
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ]
+      },
+      "Dayparting": {
+        "type": "object",
+        "properties": {
+          "preset": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TimeRangePreset"
+              }
+            ]
+          },
+          "custom_ranges": {
+            "description": "Minutes from midnight Monday (0\u201310079). Only used when preset=CUSTOM.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DaypartingRange"
+            }
+          }
+        }
+      },
+      "Targeting": {
+        "type": "object",
+        "properties": {
+          "geo": {
+            "$ref": "#/components/schemas/GeoTargeting"
+          },
+          "inventory": {
+            "$ref": "#/components/schemas/InventoryTargeting"
+          },
+          "age_ranges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TargetingAgeRange"
+            }
+          },
+          "genders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TargetingGender"
+            }
+          },
+          "devices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TargetingDevice"
+            }
+          },
+          "interests": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "audiences": {
+            "$ref": "#/components/schemas/AudienceTargeting"
+          },
+          "dayparting": {
+            "$ref": "#/components/schemas/Dayparting"
+          }
+        }
+      },
+      "Strategy": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "campaign_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "budget": {
+            "type": "integer",
+            "description": "Budget in USD"
+          },
+          "budget_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BudgetType"
+              }
+            ]
+          },
+          "starts_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ends_at": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "state": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StrategyState"
+              }
+            ]
+          },
+          "targeting": {
+            "$ref": "#/components/schemas/Targeting"
+          },
+          "creative_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "campaign_id",
+          "name",
+          "budget",
+          "budget_type",
+          "starts_at",
+          "ends_at",
+          "active",
+          "state",
+          "targeting",
+          "creative_ids",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "StrategyAction": {
+        "type": "string",
+        "enum": [
+          "PAUSE",
+          "ACTIVATE"
+        ],
+        "description": "Lifecycle action to perform on the strategy"
+      },
+      "StrategyActionRequest": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "description": "Lifecycle action to perform on the strategy",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StrategyAction"
+              }
+            ]
+          }
+        },
+        "required": [
+          "action"
+        ]
+      },
+      "ReportFailureReason": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Stable machine-readable error code"
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable explanation"
+          },
+          "details": {
+            "type": "object",
+            "nullable": true,
+            "description": "Additional context specific to the failure code"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ]
+      },
+      "Report": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Stable identifier of the report",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "CREATED",
+              "PROCESSING",
+              "READY",
+              "FAILED"
+            ]
+          },
+          "download_url": {
+            "type": "string",
+            "nullable": true,
+            "format": "uri",
+            "description": "Pre-signed URL to download the report. Populated only when status is READY."
+          },
+          "generated_url_time": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "url_expiration_time": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "failure_reason": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReportFailureReason"
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "description": "Time at which the report was created",
+            "format": "date-time"
+          },
+          "completed_at": {
+            "type": "string",
+            "nullable": true,
+            "description": "Time at which the report reached a terminal state",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "created_at"
+        ]
+      },
+      "ReportFilter": {
+        "type": "object",
+        "properties": {
+          "dimension": {
+            "type": "string",
+            "description": "Dimension to filter on",
+            "enum": [
+              "event_source_id",
+              "campaign_id",
+              "strategy_id"
+            ]
+          },
+          "values": {
+            "minItems": 1,
+            "description": "Values to include",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "dimension"
+        ]
+      },
+      "ReportCreate": {
+        "type": "object",
+        "properties": {
+          "start_date": {
+            "type": "string",
+            "description": "Minimum date (inclusive) for which to return data",
+            "format": "date"
+          },
+          "end_date": {
+            "type": "string",
+            "description": "Maximum date (exclusive) for which to return data",
+            "format": "date"
+          },
+          "timezone": {
+            "type": "string",
+            "description": "Timezone identifier for reported data",
+            "enum": [
+              "UTC",
+              "Europe/Amsterdam",
+              "Europe/Berlin",
+              "Europe/Helsinki",
+              "Europe/Istanbul",
+              "Europe/London",
+              "Europe/Stockholm",
+              "Asia/Seoul",
+              "Asia/Shanghai",
+              "Asia/Tel_Aviv",
+              "America/Denver",
+              "America/Los_Angeles",
+              "America/New_York",
+              "America/Phoenix"
+            ],
+            "default": "UTC"
+          },
+          "advertiser_ids": {
+            "minItems": 1,
+            "description": "Advertisers to include. Must be owned by the tenant.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "dimensions": {
+            "type": "array",
+            "description": "Dimensions to group rows by",
+            "items": {
+              "type": "string",
+              "enum": [
+                "impression_date",
+                "advertiser_id",
+                "advertiser_name",
+                "campaign_id",
+                "campaign_name",
+                "strategy_id",
+                "strategy_name",
+                "creative_id",
+                "creative_name",
+                "event_source_id",
+                "event_source_platform",
+                "purchase_id",
+                "screen",
+                "channel_name",
+                "content_name",
+                "geo_region",
+                "geo_metro",
+                "geo_city",
+                "geo_zip",
+                "segment_ages",
+                "segment_career",
+                "segment_educations",
+                "segment_estimated_incomes",
+                "segment_estimated_net_worth",
+                "segment_ethnicity",
+                "segment_family_composition",
+                "segment_genders",
+                "segment_interests",
+                "segment_languages",
+                "segment_political_status",
+                "segment_retargeting",
+                "custom_audiences"
+              ]
+            }
+          },
+          "metrics": {
+            "type": "array",
+            "minItems": 1,
+            "description": "Metrics to compute",
+            "items": {
+              "type": "string",
+              "enum": [
+                "spend",
+                "impressions",
+                "households",
+                "frequency",
+                "cpm",
+                "completed_views",
+                "cost_per_completed_view",
+                "view_through_rate",
+                "number_of_page_views",
+                "cost_per_page_view",
+                "number_of_sessions",
+                "cost_per_session",
+                "number_of_leads",
+                "cost_per_lead",
+                "installs",
+                "cost_per_install",
+                "number_of_purchases",
+                "cost_per_purchase",
+                "amount_of_purchases",
+                "number_of_signups",
+                "cost_per_signup",
+                "number_of_custom_1",
+                "cost_per_custom_1",
+                "number_of_custom_2",
+                "cost_per_custom_2",
+                "number_of_custom_3",
+                "cost_per_custom_3",
+                "roas"
+              ]
+            }
+          },
+          "attribution_window": {
+            "type": "string",
+            "enum": [
+              "1h",
+              "6h",
+              "12h",
+              "24h",
+              "48h",
+              "72h",
+              "7 days",
+              "30 days"
+            ],
+            "default": "7 days"
+          },
+          "granularity": {
+            "type": "string",
+            "default": "DAY",
+            "description": "Time aggregation granularity for rows in the report",
+            "enum": [
+              "HOUR",
+              "DAY",
+              "WEEK",
+              "MONTH"
+            ]
+          },
+          "filters": {
+            "description": "Optional filters, combined with AND",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReportFilter"
+            }
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "JSON",
+              "CSV"
+            ],
+            "default": "JSON"
+          }
+        },
+        "required": [
+          "start_date",
+          "end_date",
+          "advertiser_ids",
+          "metrics"
+        ]
+      },
+      "CreativeType": {
+        "type": "string",
+        "enum": [
+          "VIDEO",
+          "VAST"
+        ]
+      },
+      "CreativeApprovalStatus": {
+        "type": "string",
+        "enum": [
+          "PROCESSING",
+          "PENDING_REVIEW",
+          "AUTHORIZED",
+          "BLOCKED"
+        ]
+      },
+      "Creative": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "advertiser_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CreativeType"
+              }
+            ]
+          },
+          "asset_url": {
+            "type": "string",
+            "nullable": true,
+            "format": "uri",
+            "description": "Vibe-hosted URL, populated after processing for VIDEO creatives"
+          },
+          "vast_tag_url": {
+            "type": "string",
+            "nullable": true,
+            "format": "uri"
+          },
+          "approval_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CreativeApprovalStatus"
+              }
+            ]
+          },
+          "approval_details": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "advertiser_id",
+          "name",
+          "type",
+          "asset_url",
+          "vast_tag_url",
+          "approval_status",
+          "approval_details",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "CreativeList": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Creative"
+            }
+          },
+          "total": {
+            "type": "number",
+            "description": "Total number of creatives matching the filters"
+          },
+          "limit": {
+            "type": "number",
+            "description": "Maximum number of items returned"
+          },
+          "offset": {
+            "type": "number",
+            "description": "Number of items skipped"
+          }
+        },
+        "required": [
+          "data",
+          "total",
+          "limit",
+          "offset"
+        ]
+      },
+      "ReplaceStrategyCreatives": {
+        "type": "object",
+        "properties": {
+          "creative_ids": {
+            "maxItems": 5000,
+            "description": "Full list of creatives to attach. Replaces any current attachments.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": [
+          "creative_ids"
+        ]
+      },
+      "StrategyUpdate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 100
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "budget": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Budget in USD"
+          },
+          "budget_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BudgetType"
+              }
+            ]
+          },
+          "starts_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ends_at": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "targeting": {
+            "$ref": "#/components/schemas/Targeting"
+          },
+          "creative_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      "StrategyList": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Strategy"
+            }
+          },
+          "total": {
+            "type": "number",
+            "description": "Total number of strategies matching the filters"
+          },
+          "limit": {
+            "type": "number",
+            "description": "Maximum number of items returned"
+          },
+          "offset": {
+            "type": "number",
+            "description": "Number of items skipped"
+          }
+        },
+        "required": [
+          "data",
+          "total",
+          "limit",
+          "offset"
+        ]
+      },
+      "VideoCreativeCreate": {
+        "type": "object",
+        "properties": {
+          "advertiser_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150
+          },
+          "upload_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier returned by GET /creatives/upload-url after the file has been uploaded."
+          }
+        },
+        "required": [
+          "advertiser_id",
+          "name",
+          "upload_id"
+        ]
+      },
+      "CreativeProcessing": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "processing"
+            ]
+          },
+          "upload_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "status",
+          "upload_id"
+        ]
+      },
+      "StrategyCreate": {
+        "type": "object",
+        "properties": {
+          "campaign_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 100
+          },
+          "budget": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Budget in USD"
+          },
+          "budget_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BudgetType"
+              }
+            ]
+          },
+          "starts_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ends_at": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "active": {
+            "type": "boolean",
+            "default": true
+          },
+          "targeting": {
+            "$ref": "#/components/schemas/Targeting"
+          },
+          "creative_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": [
+          "campaign_id",
+          "name",
+          "budget",
+          "budget_type",
+          "starts_at"
+        ]
+      },
+      "CreativeUploadUrl": {
+        "type": "object",
+        "properties": {
+          "upload_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "S3 endpoint URL \u2014 POST a multipart form to this URL with the file and the returned fields."
+          },
+          "fields": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Presigned POST form fields (key, policy, signature, \u2026). Include each entry as a form field of the multipart POST."
+          },
+          "upload_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of the prepared upload. Pass it as `upload_id` when creating the creative."
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "upload_url",
+          "fields",
+          "upload_id",
+          "expires_at"
+        ]
+      },
+      "AgeRange": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Age range identifier",
+            "enum": [
+              "RANGE_18_20",
+              "RANGE_21_24",
+              "RANGE_25_34",
+              "RANGE_35_44",
+              "RANGE_45_54",
+              "RANGE_55_64",
+              "RANGE_65_MORE"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "description": "Age range display name (e.g. \"18\u201320\", \"65+\")"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "AgeRangeList": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgeRange"
+            }
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "Device": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Device identifier",
+            "enum": [
+              "TV",
+              "TABLET",
+              "MOBILE"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "description": "Device display name"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "DeviceList": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Device"
+            }
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "GeoLocation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Location identifier",
+            "examples": [
+              "USA/NY",
+              "501",
+              "5115985",
+              "05442",
+              "36061",
+              "550e8400-e29b-41d4-a716-446655440000"
+            ]
+          },
+          "label": {
+            "type": "string",
+            "description": "Human-readable location label",
+            "examples": [
+              "New York",
+              "501, New York, NY",
+              "East New York, NY",
+              "05442, Belvidere Center, VT",
+              "Alameda County, CA",
+              "CA-01 - California's 1st congressional district"
+            ]
+          },
+          "reach": {
+            "type": "number",
+            "description": "Estimated addressable reach (households for zipcodes, population for other types)",
+            "example": 7009535
+          },
+          "type": {
+            "type": "string",
+            "description": "Location type",
+            "enum": [
+              "REGION",
+              "METRO",
+              "CITY",
+              "ZIPCODE",
+              "COUNTY",
+              "CONGRESSIONAL_DISTRICT"
+            ],
+            "example": "REGION"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "reach",
+          "type"
+        ]
+      },
+      "GeoLocationList": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GeoLocation"
+            }
+          },
+          "total": {
+            "type": "number",
+            "description": "Total matching locations. In fan-out mode (search without type), this is the sum across all 6 location types.",
+            "example": 1250
+          },
+          "limit": {
+            "type": "number",
+            "description": "Limit used in the query",
+            "example": 20
+          },
+          "offset": {
+            "type": "number",
+            "description": "Offset used in the query. Always 0 in fan-out mode (search without type).",
+            "example": 0
+          }
+        },
+        "required": [
+          "data",
+          "total",
+          "limit",
+          "offset"
+        ]
+      },
+      "CampaignGoal": {
+        "type": "string",
+        "enum": [
+          "AWARENESS",
+          "INSTALL",
+          "TRAFFIC",
+          "RETARGETING",
+          "SALES",
+          "LEADS",
+          "ABM"
+        ]
+      },
+      "OptimizationGoalType": {
+        "type": "string",
+        "enum": [
+          "COST_PER_SESSION",
+          "COST_PER_LEAD",
+          "COST_PER_CALL",
+          "COST_PER_PURCHASE",
+          "ROAS",
+          "CPM",
+          "COST_PER_INSTALL",
+          "COST_PER_UNIQUE_HOUSEHOLD",
+          "COST_PER_UNIQUE_COMPANY"
+        ]
+      },
+      "OptimizationGoal": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OptimizationGoalType"
+              }
+            ]
+          },
+          "value": {
+            "type": "number",
+            "nullable": true,
+            "description": "Target value in USD"
+          }
+        },
+        "required": [
+          "type",
+          "value"
+        ]
+      },
+      "Campaign": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "advertiser_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "goal": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CampaignGoal"
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "PUBLISHED",
+              "ARCHIVED",
+              "DELETED"
+            ]
+          },
+          "state": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "ARCHIVED",
+              "BLOCKED",
+              "COMPLETED",
+              "DELIVERING",
+              "INACTIVE",
+              "PAUSED",
+              "PAYMENT_ISSUE",
+              "PENDING_REVIEW",
+              "UPCOMING"
+            ]
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "attribution_window_in_hours": {
+            "type": "number",
+            "description": "Attribution window expressed in hours",
+            "example": 720
+          },
+          "optimization_goal": {
+            "$ref": "#/components/schemas/OptimizationGoal"
+          },
+          "start_date": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time",
+            "description": "Derived from strategies"
+          },
+          "end_date": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time",
+            "description": "Derived from strategies"
+          },
+          "budget": {
+            "type": "number",
+            "nullable": true,
+            "description": "Derived from strategies, in USD"
+          },
+          "publication_date": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "advertiser_id",
+          "name",
+          "goal",
+          "status",
+          "state",
+          "active",
+          "attribution_window_in_hours",
+          "optimization_goal",
+          "start_date",
+          "end_date",
+          "budget",
+          "publication_date",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "OptimizationTarget": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OptimizationGoalType"
+              }
+            ]
+          },
+          "value": {
+            "type": "number",
+            "minimum": 1,
+            "description": "Target value in USD (max 2 decimals)"
+          }
+        },
+        "required": [
+          "type",
+          "value"
+        ]
+      },
+      "AttributionWindow": {
+        "type": "string",
+        "enum": [
+          "TWELVE_HOURS",
+          "ONE_DAY",
+          "FORTY_EIGHT_HOURS",
+          "SEVENTY_TWO_HOURS",
+          "SEVEN_DAYS",
+          "THIRTY_DAYS"
+        ]
+      },
+      "CampaignUpdate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 100
+          },
+          "goal": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CampaignGoal"
+              }
+            ]
+          },
+          "attribution_window": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AttributionWindow"
+              }
+            ]
+          },
+          "optimization_goal": {
+            "$ref": "#/components/schemas/OptimizationTarget"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CampaignStatus": {
+        "type": "string",
+        "enum": [
+          "DRAFT",
+          "PUBLISHED",
+          "ARCHIVED",
+          "DELETED"
+        ]
+      },
+      "CampaignState": {
+        "type": "string",
+        "enum": [
+          "ARCHIVED",
+          "BLOCKED",
+          "COMPLETED",
+          "DELIVERING",
+          "INACTIVE",
+          "PAUSED",
+          "PAYMENT_ISSUE",
+          "PENDING_REVIEW",
+          "UPCOMING"
+        ]
+      },
+      "StrategyItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "state": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StrategyState"
+              }
+            ]
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end_date": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "active",
+          "state",
+          "start_date",
+          "end_date",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "CampaignListItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "advertiser_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "goal": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CampaignGoal"
+              }
+            ]
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CampaignStatus"
+              }
+            ]
+          },
+          "state": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CampaignState"
+              }
+            ]
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "attribution_window_in_hours": {
+            "type": "number",
+            "description": "Attribution window expressed in hours",
+            "example": 720
+          },
+          "optimization_goal": {
+            "$ref": "#/components/schemas/OptimizationGoal"
+          },
+          "start_date": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time",
+            "description": "Derived from strategies"
+          },
+          "end_date": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time",
+            "description": "Derived from strategies"
+          },
+          "budget": {
+            "type": "number",
+            "nullable": true,
+            "description": "Derived from strategies, in USD"
+          },
+          "strategies": {
+            "description": "Strategies linked to this campaign",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StrategyItem"
+            }
+          },
+          "publication_date": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "advertiser_id",
+          "name",
+          "goal",
+          "status",
+          "state",
+          "active",
+          "attribution_window_in_hours",
+          "optimization_goal",
+          "start_date",
+          "end_date",
+          "budget",
+          "strategies",
+          "publication_date",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "CampaignList": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CampaignListItem"
+            }
+          },
+          "total": {
+            "type": "number",
+            "description": "Total number of campaigns matching the filters"
+          },
+          "limit": {
+            "type": "number",
+            "description": "Maximum number of items returned"
+          },
+          "offset": {
+            "type": "number",
+            "description": "Number of items skipped"
+          }
+        },
+        "required": [
+          "data",
+          "total",
+          "limit",
+          "offset"
+        ]
+      },
+      "CampaignCreate": {
+        "type": "object",
+        "properties": {
+          "advertiser_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 100
+          },
+          "goal": {
+            "type": "string",
+            "enum": [
+              "AWARENESS",
+              "INSTALL",
+              "TRAFFIC",
+              "RETARGETING",
+              "SALES",
+              "LEADS",
+              "ABM"
+            ]
+          },
+          "optimization_goal": {
+            "$ref": "#/components/schemas/OptimizationTarget"
+          },
+          "active": {
+            "type": "boolean",
+            "default": true
+          },
+          "countries": {
+            "description": "ISO 3166-1 alpha-3 country codes the campaign targets. Must be the exact set: USA.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "attribution_window": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AttributionWindow"
+              }
+            ]
+          }
+        },
+        "required": [
+          "advertiser_id",
+          "name",
+          "goal",
+          "optimization_goal",
+          "countries"
+        ]
+      },
+      "Balance": {
+        "type": "object",
+        "properties": {
+          "account_id": {
+            "type": "number",
+            "description": "Account (tenant) identifier"
+          },
+          "currency": {
+            "type": "string",
+            "description": "ISO 4217 currency code",
+            "example": "usd"
+          },
+          "balance_cents": {
+            "type": "number",
+            "description": "Current balance in cents (integer, no decimals)"
+          },
+          "updated_at": {
+            "type": "object",
+            "nullable": true,
+            "description": "When the balance was last updated",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "account_id",
+          "currency",
+          "balance_cents",
+          "updated_at"
+        ]
+      },
+      "App": {
+        "type": "object",
+        "properties": {
+          "app_id": {
+            "type": "string",
+            "description": "App identifier: Android package name, iOS bundle ID, or pixel ID"
+          },
+          "os": {
+            "type": "string",
+            "enum": [
+              "ANDROID",
+              "IOS",
+              "WEB"
+            ],
+            "description": "Operating system / environment"
+          }
+        },
+        "required": [
+          "app_id",
+          "os"
+        ]
+      },
+      "Advertiser": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "industry": {
+            "type": "string"
+          },
+          "apps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/App"
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "url",
+          "industry",
+          "apps",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "AdvertiserCreate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "The brand-owned website of the advertiser. Marketplace, app store and social media pages are rejected."
+          },
+          "industry": {
+            "type": "string",
+            "enum": [
+              "AUTOMOTIVE",
+              "EDUCATION",
+              "FINANCIAL_SERVICES",
+              "FOOD_DRINK",
+              "FOOD_DRINK_WINE",
+              "GAMING",
+              "GAMING_GAMBLING",
+              "HEALTH_FITNESS",
+              "HEALTH_FITNESS_ALTERNATIVE",
+              "HUNTING_SHOOTING",
+              "LAW_LEGAL_PRACTICE",
+              "MEDIA_ENTERTAINMENT",
+              "OTHER",
+              "POLITICS",
+              "PROFESSIONAL_SERVICES",
+              "REAL_ESTATE",
+              "RELIGION_SPIRITUALITY",
+              "RETAIL",
+              "TECHNOLOGY_TELECOMMUNICATIONS",
+              "TOBACCO_SMOKING",
+              "TRAVEL_HOSPITALITY"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "url",
+          "industry"
+        ]
+      },
+      "Account": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "description": "Stable identifier of the account"
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name of the account"
+          },
+          "currency": {
+            "type": "string",
+            "description": "Currency of the account"
+          },
+          "timezone": {
+            "type": "string",
+            "description": "Timezone of the account"
+          },
+          "status": {
+            "type": "string",
+            "description": "Current account status",
+            "enum": [
+              "ACTIVE",
+              "BLOCKED",
+              "ONBOARDING"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "description": "Timestamp when the account was created",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "description": "Timestamp when the account was last updated",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "currency",
+          "timezone",
+          "status",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "AdvertisersItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "industry": {
+            "type": "string"
+          },
+          "apps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/App"
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "url",
+          "industry",
+          "apps",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "AdvertiserList": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdvertisersItem"
+            }
+          },
+          "total": {
+            "type": "number",
+            "description": "Total number of advertisers matching the filters"
+          },
+          "limit": {
+            "type": "number",
+            "description": "Maximum number of items returned"
+          },
+          "offset": {
+            "type": "number",
+            "description": "Number of items skipped"
+          }
+        },
+        "required": [
+          "data",
+          "total",
+          "limit",
+          "offset"
+        ]
+      },
+      "AuthorizationCodeTokenRequest": {
+        "type": "object",
+        "description": "Request body for the `authorization_code` grant at `POST /oauth2/token`.",
+        "required": [
+          "grant_type",
+          "code",
+          "redirect_uri"
+        ],
+        "properties": {
+          "grant_type": {
+            "type": "string",
+            "enum": [
+              "authorization_code"
+            ]
+          },
+          "code": {
+            "type": "string",
+            "description": "Authorization code received on the redirect from `GET /oauth2/auth`."
+          },
+          "redirect_uri": {
+            "type": "string",
+            "format": "uri",
+            "description": "Must match the `redirect_uri` used when obtaining the authorization code."
+          }
+        }
+      },
+      "ClientCredentialsTokenRequest": {
+        "type": "object",
+        "description": "Request body for the `client_credentials` grant at `POST /oauth2/token`.",
+        "required": [
+          "grant_type"
+        ],
+        "properties": {
+          "grant_type": {
+            "type": "string",
+            "enum": [
+              "client_credentials"
+            ]
+          },
+          "scope": {
+            "type": "string",
+            "description": "Optional space-delimited list of requested scopes. If omitted, the token is issued with all scopes available to the client.",
+            "example": "campaigns:read audiences:write"
+          }
+        }
+      },
+      "TokenResponse": {
+        "type": "object",
+        "description": "Standard OAuth 2.0 token response per RFC 6749 \u00a75.1.",
+        "required": [
+          "access_token",
+          "token_type",
+          "expires_in"
+        ],
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "description": "Bearer token to send as `Authorization: Bearer <access_token>` on subsequent API requests."
+          },
+          "token_type": {
+            "type": "string",
+            "example": "Bearer"
+          },
+          "expires_in": {
+            "type": "integer",
+            "description": "Lifetime of the access token in seconds.",
+            "example": 3600
+          },
+          "scope": {
+            "type": "string",
+            "description": "Space-delimited list of scopes granted to the token. May be a subset of the scopes requested."
+          },
+          "refresh_token": {
+            "type": "string",
+            "description": "Present only on `authorization_code` responses. Use at `POST /oauth2/token` with `grant_type=refresh_token` to obtain a new access token."
+          }
+        }
+      },
+      "OAuthError": {
+        "type": "object",
+        "description": "Standard OAuth 2.0 error envelope per RFC 6749 \u00a75.2. Deliberately distinct\nfrom Vibe's `ErrorResponse` envelope so off-the-shelf OAuth client\nlibraries parse error responses correctly.\n",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Error code defined by RFC 6749.",
+            "enum": [
+              "invalid_request",
+              "invalid_client",
+              "invalid_grant",
+              "unauthorized_client",
+              "unsupported_grant_type",
+              "invalid_scope"
+            ]
+          },
+          "error_description": {
+            "type": "string",
+            "description": "Human-readable explanation of the error."
+          },
+          "error_uri": {
+            "type": "string",
+            "format": "uri",
+            "description": "URI of a page with more information about the error."
+          }
+        }
+      }
+    }
+  }
+}

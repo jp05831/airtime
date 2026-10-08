@@ -1,0 +1,21 @@
+# Campaign operations
+
+`/admin` requires the existing allowlisted administrator and Supabase TOTP AAL2 authentication. `/api/admin/vibe` protects every operation with the same server authorization/CSRF controls and audits mutations.
+
+The operations panel shows the global live/test status, creator/coin identities, creative review/rejection, invoice expiration, verified receipt, provider resource IDs and provisioning attempts, campaign queues, collected SOL, allocated media, fees, settlements, account outstanding balance, alerts and sync runs. The existing private records and messaging remain available. New automated orders cannot be approved or given fabricated reports using legacy manual controls.
+
+Schedule authenticated GET/POST `/api/worker` every five minutes with `Authorization: Bearer <CRON_SECRET>`. It reconciles finalized Solana payments and Vibe review/delivery. In prelaunch mode, creative registration/review continues but paid provisioning and publishing are held. Jobs use bounded timeouts, read retries and durable create identities. Review failures, uncertain creates and paid activation failures appear as alerts. No browser receives advertising credentials.
+
+Settlement transitions are PENDING_CONVERSION → CONVERTED → VIBE_FUNDED → RECONCILED, or FAILED. These are accounting records, not automatic exchange or card operations. Verify conversion and provider funding evidence before changing a stage. Never confuse the account's outstanding balance with prepaid available inventory funds.
+
+If activation fails after payment: preserve the original receipt and Vibe IDs; pause activation, inspect the real provider campaign/strategy, resolve authentication/creative/billing errors, and resume synchronization only after investigation. Unknown create operations must be matched against Vibe records; do not reset them simply to send another create. If the order cannot be fulfilled, enter refund review and verify an operator-signed finalized refund to the original payer. No second customer payment is required to retry activation.
+
+Reconciliation records exact provider spend. Near-$50 and overspend alerts are generated, and strategies are paused when recorded spend reaches $50. The provider's $50 GLOBAL limit is the primary spend control; polling cannot promise zero overshoot by itself. Reporting failures retain honest unavailable values. Channel/app and geography ingestion requires validating the provider’s actual export format. Investigate API authentication, worker freshness and missing report fixtures before launch.
+
+Emergency rollback: set VIBE_LIVE_MODE=false, separately pause any active provider strategies in Vibe or through the authenticated pause action, and retain all finalized payment/audit data. Disabling activation alone does not stop already-running advertisements.
+
+Provisioning states are QUEUED → RUNNING → COMPLETE, READY while live mode is off, and FAILED on errors. The customer state becomes PROVISIONING_FAILED; finalized payment and the $50/$10 accounting remain intact. Retry backoff is bounded at 12 failures. UNKNOWN external creates require identity reconciliation, never another blind POST. Refund review is available for unspent paid/held/failed orders; already-published spend requires manual reconciliation first.
+
+The campaign state machine keeps existing names: DRAFT → SUBMITTED_FOR_REVIEW → CREATIVE_UPLOADING → CREATIVE_PENDING → APPROVED_AWAITING_PAYMENT → QUOTE_ACTIVE → PAYMENT_VERIFYING → PAID → ACTIVATING → UPCOMING/DELIVERING → COMPLETED. BLOCKED maps to CREATIVE_REJECTED and replacement returns to DRAFT. READY_TO_ACTIVATE holds paid test-mode orders. Failures use PROVISIONING_FAILED and can enter REFUND_REVIEW. Completed campaigns never reactivate automatically. Creative APPROVED status alone never creates or activates a campaign.
+
+Maintain sufficient card/payment capacity in the Vibe dashboard for accumulated delivered spend. SOL receipts, reserved media liability, actual Vibe spend, $10 service revenue, aggregated outstanding billing, conversions and refunds are separately reconciled. No Coinbase/card credentials or wallet private keys are collected by AIRTIME.

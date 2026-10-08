@@ -1,0 +1,155 @@
+# AIRTIME file inventory after the creator-platform refactor
+
+All paths are relative to `/home/jp05831/airtime`. AIRTIME is the sole active project. Generated dependencies/caches, private environment files and browser artifacts are excluded.
+
+## Principal additions
+
+- `lib/platform/`: wallet authentication, official coin authority/claims, campaigns, integer invoices, finalized payments, private creative validation, operations, reconciliation and future fulfillment boundary.
+- `app/api/creator/`: authenticated creator endpoints; `app/api/admin/operations/`: MFA-protected operator endpoints.
+- `app/dashboard/[[...section]]/page.tsx`: private creator workspace routing.
+- `components/creator-wallet.tsx`, `creator-app.tsx`, `campaign-builder.tsx`, `campaign-payment.tsx`, `operations-console.tsx`.
+- `supabase/migrations/002_creator_platform.sql`: forward-only multi-tenant migration.
+- `tests/platform.test.ts`, technical MP4 fixture, local layout database and expanded browser verification.
+- Updated creator-platform documentation and retained legacy records/code in `docs/archive/` and `archive/treasury-routes/`.
+
+## Principal existing files edited
+
+Homepage/styles/metadata/social image, navigation/footer/root wallet provider; campaign and legal pages; legacy treasury redirect and APIs; server config/database/worker/webhook integration and protocol account compatibility; original tests for retired legacy mutation contracts; package/config/environment files, README and launch guides. Design assets and historical migration 001 are retained.
+
+## Complete source/documentation inventory
+
+- `.env.example`
+- `.gitignore`
+- `README.md`
+- `app/admin/page.tsx`
+- `app/api/admin/campaign-action/route.ts`
+- `app/api/admin/campaigns/route.ts`
+- `app/api/admin/ledger/route.ts`
+- `app/api/admin/operations/route.ts`
+- `app/api/admin/operations/upload/route.ts`
+- `app/api/admin/resync/route.ts`
+- `app/api/admin/settings/route.ts`
+- `app/api/admin/state/route.ts`
+- `app/api/admin/upload/route.ts`
+- `app/api/auth/enroll/route.ts`
+- `app/api/auth/login/route.ts`
+- `app/api/auth/logout/route.ts`
+- `app/api/auth/verify/route.ts`
+- `app/api/creator/authenticate/route.ts`
+- `app/api/creator/broadcast/route.ts`
+- `app/api/creator/campaigns/route.ts`
+- `app/api/creator/challenge/route.ts`
+- `app/api/creator/coins/route.ts`
+- `app/api/creator/logout/route.ts`
+- `app/api/creator/media/route.ts`
+- `app/api/creator/prepare/route.ts`
+- `app/api/creator/proof/route.ts`
+- `app/api/creator/quote/route.ts`
+- `app/api/creator/receipt/route.ts`
+- `app/api/creator/state/route.ts`
+- `app/api/creator/upload/route.ts`
+- `app/api/creator/verify/route.ts`
+- `app/api/health/route.ts`
+- `app/api/media/[id]/route.ts`
+- `app/api/platform/route.ts`
+- `app/api/public/route.ts`
+- `app/api/trade/route.ts`
+- `app/api/webhooks/helius/route.ts`
+- `app/api/worker/route.ts`
+- `app/campaigns/[slug]/opengraph-image.tsx`
+- `app/campaigns/[slug]/page.tsx`
+- `app/campaigns/page.tsx`
+- `app/dashboard/[[...section]]/page.tsx`
+- `app/disclosures/page.tsx`
+- `app/error.tsx`
+- `app/globals.css`
+- `app/icon.svg`
+- `app/layout.tsx`
+- `app/loading.tsx`
+- `app/not-found.tsx`
+- `app/opengraph-image.tsx`
+- `app/page.tsx`
+- `app/privacy/page.tsx`
+- `app/terms/page.tsx`
+- `app/treasury/page.tsx`
+- `archive/treasury-routes/campaign-action.ts`
+- `archive/treasury-routes/campaigns.ts`
+- `archive/treasury-routes/ledger.ts`
+- `archive/treasury-routes/settings.ts`
+- `archive/treasury-routes/upload.ts`
+- `components/admin-console.tsx`
+- `components/admin-login.tsx`
+- `components/campaign-builder.tsx`
+- `components/campaign-payment.tsx`
+- `components/copy-address.tsx`
+- `components/creator-app.tsx`
+- `components/creator-wallet.tsx`
+- `components/funding.tsx`
+- `components/legal.tsx`
+- `components/live.tsx`
+- `components/logo.tsx`
+- `components/nav.tsx`
+- `components/operations-console.tsx`
+- `components/ui.tsx`
+- `docs/ADMIN.md`
+- `docs/FILES.md`
+- `docs/HELIUS.md`
+- `docs/IMPLEMENTATION_REPORT.md`
+- `docs/LAUNCH_CHECKLIST.md`
+- `docs/PARTNER_INTEGRATION.md`
+- `docs/PLAN.md`
+- `docs/REFACTOR_PLAN.md`
+- `docs/SUPABASE.md`
+- `docs/archive/initial-implementation_report.md`
+- `docs/archive/initial-plan.md`
+- `eslint.config.mjs`
+- `instrumentation.ts`
+- `lib/accounting.ts`
+- `lib/platform/auth.ts`
+- `lib/platform/campaigns.ts`
+- `lib/platform/coins.ts`
+- `lib/platform/config.ts`
+- `lib/platform/creative.ts`
+- `lib/platform/fulfillment.ts`
+- `lib/platform/model.ts`
+- `lib/platform/operations.ts`
+- `lib/platform/payments.ts`
+- `lib/platform/worker.ts`
+- `lib/server/admin.ts`
+- `lib/server/auth.ts`
+- `lib/server/campaigns.ts`
+- `lib/server/chain.ts`
+- `lib/server/config.ts`
+- `lib/server/db.ts`
+- `lib/server/http.ts`
+- `lib/server/price.ts`
+- `lib/server/protocol.ts`
+- `lib/server/queries.ts`
+- `lib/server/uploads.ts`
+- `lib/types.ts`
+- `lib/validation.ts`
+- `middleware.ts`
+- `next-env.d.ts`
+- `next.config.mjs`
+- `package-lock.json`
+- `package.json`
+- `postcss.config.mjs`
+- `scripts/browser-check.mjs`
+- `scripts/client-check.mjs`
+- `scripts/layout-db.mjs`
+- `scripts/migrate.ts`
+- `scripts/verify-build.mjs`
+- `scripts/worker.ts`
+- `supabase/migrations/001_airtime.sql`
+- `supabase/migrations/002_creator_platform.sql`
+- `tailwind.config.ts`
+- `tests/airtime.test.ts`
+- `tests/fixtures/technical-test-15s.mp4`
+- `tests/platform.test.ts`
+- `tsconfig.json`
+- `vendor/pump/README.md`
+- `vendor/pump/pump.json`
+- `vendor/pump/pump_amm.json`
+- `vendor/pump/pump_fees.json`
+- `vercel.json`
+- `vitest.config.mts`
