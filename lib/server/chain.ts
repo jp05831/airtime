@@ -14,12 +14,12 @@ import { refreshPrice } from "./price";
 import { redact } from "./http";
 import { funding } from "./queries";
 export const GENESIS = "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp";
-export function connection() {
+export function connection(timeoutMs = 10000) {
   return new Connection(required("SOLANA_RPC_URL"), {
     commitment: "finalized",
     disableRetryOnRateLimit: true,
     fetch: async (input, init) =>
-      fetch(input, { ...init, signal: AbortSignal.timeout(10000) }),
+      fetch(input, { ...init, signal: AbortSignal.timeout(timeoutMs) }),
   });
 }
 export async function queue(signature: string, payload: unknown) {

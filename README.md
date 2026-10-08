@@ -10,7 +10,7 @@ The existing platform now supports verified coin → private commercial → adul
 2. Configure Supabase/Postgres and private storage using [docs/SUPABASE.md](docs/SUPABASE.md); run `npm run db:migrate` (001 → 002 → 003 → 004 → 005, forward-only).
 3. Configure final domain, server secrets, mainnet RPC and campaign payment wallet. Never store wallet private keys in AIRTIME.
 4. Install maintained ffprobe and set `FFPROBE_PATH`; select hosting that supports binary execution and configured video uploads (default 25 MB). Small serverless payload limits require different hosting or an additional signed-upload transport.
-5. Follow [docs/HELIUS.md](docs/HELIUS.md) and schedule authenticated `/api/worker` every five minutes.
+5. Follow [docs/HELIUS.md](docs/HELIUS.md) and schedule authenticated POST `/api/worker` through cron-job.org every five minutes on Vercel Hobby. Set a private `WORKER_SECRET`; no Vercel Cron job is configured.
 6. Create the allowlisted Supabase administrator and require TOTP AAL2.
 7. Revoke the exposed Vibe credential and follow [docs/VIBE.md](docs/VIBE.md) to create/store a replacement OAuth client. Leave optional `VIBE_ACCOUNT_ID` blank for AIRTIME’s private account-bound app; pin the revision.
 8. Run `npm run dev` at http://localhost:3200. Missing configuration shows honest empty states; no fake production records are substituted.

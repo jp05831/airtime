@@ -8,7 +8,7 @@ const names = [
   "AUTH_SECRET",
   "TOTP_ENCRYPTION_KEY",
   "HELIUS_WEBHOOK_SECRET",
-  "CRON_SECRET",
+  "WORKER_SECRET",
   "DATABASE_URL",
 ];
 const excluded = new Set(["node_modules", ".git", ".next-dev", "artifacts"]);

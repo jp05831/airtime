@@ -84,12 +84,14 @@ export type StrategyOrder = {
   targeting: Record<string, unknown>;
 };
 export class VibeClient {
-  private deadline = Date.now() + 150000;
+  private deadline: number;
   readonly auth: VibeAuthProvider;
   constructor(
     private transport: Transport = fetch,
     private mock = false,
+    timeoutMs = 150000,
   ) {
+    this.deadline = Date.now() + timeoutMs;
     if (mock && process.env.NODE_ENV !== "test")
       throw Error("Mock transport is forbidden outside automated tests");
     this.auth = new VibeAuthProvider(transport);
@@ -104,7 +106,7 @@ export class VibeClient {
     payload?: unknown,
     catalog = false,
   ): Promise<any> {
-    if (Date.now() > this.deadline)
+    if (this.deadline - Date.now() <= 0)
       throw Error("Vibe synchronization time limit reached");
     if (
       path.endsWith("/publish") ||
@@ -118,6 +120,9 @@ export class VibeClient {
     if (config.accountId && !catalog)
       url.searchParams.set("account_id", config.accountId);
     for (let attempt = 0; attempt < 3; attempt++) {
+      const remaining = this.deadline - Date.now();
+      if (remaining <= 0)
+        throw Error("Vibe synchronization time limit reached");
       let response: Response;
       try {
         response = await this.transport(url, {
@@ -128,7 +133,7 @@ export class VibeClient {
             "Content-Type": "application/json",
           },
           body: payload === undefined ? undefined : JSON.stringify(payload),
-          signal: AbortSignal.timeout(12000),
+          signal: AbortSignal.timeout(Math.min(12000, remaining)),
           redirect: "error",
         });
       } catch {

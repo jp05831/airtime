@@ -85,7 +85,7 @@ export async function runPlatformSync(conn: Connection = connection()) {
       notice: "Campaign payment wallet not configured",
     };
   const lock = await db().connect(),
-    deadline = Date.now() + 220000;
+    deadline = Date.now() + 18000;
   try {
     if (
       !(await lock.query("SELECT pg_try_advisory_lock(836244101) acquired"))
@@ -152,7 +152,7 @@ export async function runPlatformSync(conn: Connection = connection()) {
     for (const p of pendingPayments.rows)
       await queue(p.signature, { source: "SIGNED_CAMPAIGN_TRANSACTION" });
     const { rows } = await lock.query(
-      "SELECT signature FROM webhook_events WHERE status IN ('DETECTED','VERIFYING','FAILED') AND attempts<12 ORDER BY created_at LIMIT 15",
+      "SELECT signature FROM webhook_events WHERE status IN ('DETECTED','VERIFYING','FAILED') AND attempts<12 ORDER BY created_at LIMIT 1",
     );
     let errors = 0,
       processed = 0;

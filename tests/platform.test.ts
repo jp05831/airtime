@@ -531,7 +531,7 @@ beforeEach(async () => {
     SUPABASE_ANON_KEY: "test-key",
     SUPABASE_SERVICE_ROLE_KEY: "test-storage-key",
     HELIUS_WEBHOOK_SECRET: "test-webhook-secret",
-    CRON_SECRET: "test-worker-secret",
+    WORKER_SECRET: "test-worker-secret",
   });
   delete process.env.DATABASE_URL;
   store.connection = rpcFixture();
@@ -1246,7 +1246,24 @@ describe("Creative, targeting and payment worker", () => {
     expect(await runPlatformSync()).toEqual({ paused: true });
     expect(store.connection.getGenesisHash).not.toHaveBeenCalled();
     const route = await import("@/app/api/worker/route");
-    expect((await route.GET(request("/api/worker"))).status).toBe(401);
+    expect(route.maxDuration).toBe(30);
+    expect(route).not.toHaveProperty("GET");
+    const makeWorkerRequest = (authorization: string) =>
+      new NextRequest("http://localhost:3200/api/worker", {
+        method: "POST",
+        headers: { authorization },
+      });
+    expect((await route.POST(makeWorkerRequest("Bearer wrong"))).status).toBe(
+      401,
+    );
+    const authorized = await route.POST(
+      makeWorkerRequest("Bearer test-worker-secret"),
+    );
+    expect(authorized.status).toBe(200);
+    expect(await authorized.json()).toMatchObject({
+      payments: { paused: true },
+      vibe: { paused: true },
+    });
   });
   it("does not accept an unauthenticated or malformed webhook", async () => {
     const route = await import("@/app/api/webhooks/helius/route");

@@ -6,7 +6,8 @@ Creative approval first → customer payment second → campaign activation thir
 - [ ] Create Supabase/Postgres and run migrations 001 → 002 → 003 → 004 → 005. Preserve existing data and keep RLS enabled.
 - [ ] Configure private storage, maintained ffprobe and hosting able to process the configured video size; set the final domain.
 - [ ] Configure APP_ORIGIN, server-only database/auth/storage secrets and allowlisted administrator with TOTP AAL2.
-- [ ] Configure mainnet RPC, authenticated Helius webhook, public campaign-payment wallet and authenticated worker scheduled every five minutes. No receiving-wallet private key belongs in AIRTIME.
+- [ ] Configure mainnet RPC, authenticated Helius webhook, public campaign-payment wallet and a unique server-side `WORKER_SECRET` (at least 32 characters).
+- [ ] On Vercel Hobby, configure cron-job.org to send `POST https://FINAL_DOMAIN/api/worker` every five minutes with `Authorization: Bearer <WORKER_SECRET>`. Store the secret in Vercel environment settings and cron-job.org protected request headers. Vercel Cron is not configured.
 - [ ] Configure fixed 5000 media / 1000 fee / 6000 total cents and 300-second quote TTL.
 - [ ] Store replacement OAuth client ID/secret in local/hosting secret storage; leave VIBE_ACCESS_TOKEN, VIBE_ACCESS_TOKEN_EXPIRES_AT and optional VIBE_ACCOUNT_ID blank; pin revision 2026-06-01.
 - [ ] Keep VIBE_LIVE_MODE=false during configuration, mocked testing and free creative review. There are no embedded/crypto/operator approval flags.

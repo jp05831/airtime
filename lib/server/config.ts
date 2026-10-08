@@ -50,7 +50,7 @@ export function validateProduction() {
     "SOLANA_RPC_URL",
     "HELIUS_API_KEY",
     "HELIUS_WEBHOOK_SECRET",
-    "CRON_SECRET",
+    "WORKER_SECRET",
   ])
     required(name);
   validatePlatform();
@@ -61,7 +61,7 @@ export function validateProduction() {
     "AUTH_SECRET",
     "TOTP_ENCRYPTION_KEY",
     "HELIUS_WEBHOOK_SECRET",
-    "CRON_SECRET",
+    "WORKER_SECRET",
   ])
     if (required(name).length < 32)
       throw Error(`${name} must be at least 32 characters`);
@@ -71,7 +71,7 @@ export function validateProduction() {
         "AUTH_SECRET",
         "TOTP_ENCRYPTION_KEY",
         "HELIUS_WEBHOOK_SECRET",
-        "CRON_SECRET",
+        "WORKER_SECRET",
       ].map(required),
     ).size !== 4
   )

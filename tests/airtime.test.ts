@@ -250,7 +250,7 @@ beforeEach(async () => {
     AUTH_SECRET: "auth-secret-".padEnd(40, "a"),
     TOTP_ENCRYPTION_KEY: "totp-secret-".padEnd(40, "b"),
     HELIUS_WEBHOOK_SECRET: "webhook-secret",
-    CRON_SECRET: "cron-secret",
+    WORKER_SECRET: "worker-secret",
     DEMO_MODE: "false",
   });
   await q(
@@ -535,11 +535,12 @@ describe("Authentication and input protections", () => {
     expect((await q("SELECT * FROM webhook_events")).rows).toHaveLength(1);
   });
   it("authenticates the worker", async () => {
-    const { GET } = await import("@/app/api/worker/route");
+    const { POST } = await import("@/app/api/worker/route");
     expect(
       (
-        await GET(
+        await POST(
           new NextRequest("http://localhost:3200/api/worker", {
+            method: "POST",
             headers: { authorization: "wrong" },
           }),
         )
@@ -745,10 +746,10 @@ describe("Canonical fees, exact provenance and worker retries", () => {
         headers: { authorization },
       });
     expect(() =>
-      authorize(request("Bearer cron-secret"), "CRON_SECRET", "Bearer "),
+      authorize(request("Bearer worker-secret"), "WORKER_SECRET", "Bearer "),
     ).not.toThrow();
     expect(() =>
-      authorize(request("cron-secret"), "CRON_SECRET", "Bearer "),
+      authorize(request("worker-secret"), "WORKER_SECRET", "Bearer "),
     ).toThrow();
   });
   it("cannot reuse a commitment key for a different amount", async () => {

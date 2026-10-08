@@ -22,7 +22,7 @@ export function redact(error: unknown) {
     "SUPABASE_ANON_KEY",
     "HELIUS_API_KEY",
     "HELIUS_WEBHOOK_SECRET",
-    "CRON_SECRET",
+    "WORKER_SECRET",
     "COINGECKO_API_KEY",
     "VIBE_CLIENT_ID",
     "VIBE_CLIENT_SECRET",

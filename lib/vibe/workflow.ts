@@ -643,7 +643,9 @@ export async function syncCampaign(id: string, client = new VibeClient()) {
     lock.release();
   }
 }
-export async function runVibeSync(client = new VibeClient()) {
+export async function runVibeSync(
+  client = new VibeClient(fetch, false, 22000),
+) {
   const run = (
     await db().query(
       "INSERT INTO vibe_reconciliation_runs DEFAULT VALUES RETURNING id",
@@ -664,7 +666,7 @@ export async function runVibeSync(client = new VibeClient()) {
   }
   const rows = (
     await db().query(
-      "SELECT a.id FROM ad_campaigns a LEFT JOIN vibe_campaigns v ON v.campaign_id=a.id WHERE a.product_version=2 AND a.status NOT IN ('DRAFT','REFUNDED','REFUND_REVIEW','CREATIVE_REJECTED') AND (v.retry_count IS NULL OR v.retry_count<12) AND (v.next_attempt_at IS NULL OR v.next_attempt_at<=now()) ORDER BY greatest(a.updated_at,coalesce(v.last_synced_at,a.updated_at)) LIMIT 3",
+      "SELECT a.id FROM ad_campaigns a LEFT JOIN vibe_campaigns v ON v.campaign_id=a.id WHERE a.product_version=2 AND a.status NOT IN ('DRAFT','REFUNDED','REFUND_REVIEW','CREATIVE_REJECTED') AND (v.retry_count IS NULL OR v.retry_count<12) AND (v.next_attempt_at IS NULL OR v.next_attempt_at<=now()) ORDER BY greatest(a.updated_at,coalesce(v.last_synced_at,a.updated_at)) LIMIT 1",
     )
   ).rows;
   for (const row of rows) {
