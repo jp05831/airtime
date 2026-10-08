@@ -1,4 +1,5 @@
 import { types, Pool, type PoolClient } from "pg";
+import { databaseConnectionOptions } from "./database-config";
 // Keep SQL dates as dates, independent of the backend time zone.
 types.setTypeParser(1082, (value) => value);
 const state = globalThis as unknown as { airtimePool?: Pool };
@@ -6,7 +7,7 @@ export function db() {
   if (!process.env.DATABASE_URL) throw Error("DATABASE_URL is required");
   if (!state.airtimePool) {
     state.airtimePool = new Pool({
-      connectionString: process.env.DATABASE_URL,
+      ...databaseConnectionOptions(),
       options: "-c search_path=airtime",
       max: 6,
       connectionTimeoutMillis: 8000,

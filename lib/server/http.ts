@@ -16,6 +16,7 @@ export function redact(error: unknown) {
   let message = error instanceof Error ? error.message : "Operation failed";
   for (const name of [
     "DATABASE_URL",
+    "DATABASE_CA_CERT_BASE64",
     "AUTH_SECRET",
     "TOTP_ENCRYPTION_KEY",
     "SUPABASE_SERVICE_ROLE_KEY",

@@ -4,6 +4,7 @@ Creative approval first → customer payment second → campaign activation thir
 
 - [ ] Revoke the historical exposed credential; create a replacement OAuth client through the official Vibe developer dashboard. Never reuse or paste the old credential.
 - [ ] Create Supabase/Postgres and run migrations 001 → 002 → 003 → 004 → 005. Preserve existing data and keep RLS enabled.
+- [ ] Configure `DATABASE_URL` with the Supabase session pooler hostname on port 5432 and `sslmode=verify-full`; download the project CA certificate, base64-encode the PEM, and set it as `DATABASE_CA_CERT_BASE64` in Vercel. Production refuses direct/transaction-pooler URLs and verifies the TLS CA and hostname.
 - [ ] Configure private storage and hosting able to process the configured video size; the Vercel upload function includes the bundled static FFprobe binary. Set `FFPROBE_PATH` only if intentionally overriding it.
 - [ ] Configure APP_ORIGIN, server-only database/auth/storage secrets and allowlisted administrator with TOTP AAL2.
 - [ ] Configure mainnet RPC, authenticated Helius webhook, public campaign-payment wallet and a unique server-side `WORKER_SECRET` (at least 32 characters).

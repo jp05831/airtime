@@ -2,6 +2,7 @@ import { vibeConfig } from "@/lib/vibe/config";
 import { validatePlatform } from "@/lib/platform/config";
 import type { Settings } from "@/lib/types";
 import { db } from "./db";
+import { databaseConnectionOptions } from "./database-config";
 export function required(name: string) {
   const value = process.env[name]?.trim();
   if (!value) throw Error(`${name} is required`);
@@ -41,6 +42,7 @@ export function validateProduction() {
   demoEnabled();
   for (const name of [
     "DATABASE_URL",
+    "DATABASE_CA_CERT_BASE64",
     "APP_ORIGIN",
     "ADMIN_EMAIL",
     "AUTH_SECRET",
@@ -86,12 +88,7 @@ export function validateProduction() {
     app.hash
   )
     throw Error("APP_ORIGIN must be an HTTPS origin");
-  const database = new URL(required("DATABASE_URL"));
-  if (
-    !["postgres:", "postgresql:"].includes(database.protocol) ||
-    database.searchParams.get("sslmode") !== "verify-full"
-  )
-    throw Error("PostgreSQL requires sslmode=verify-full");
+  databaseConnectionOptions(process.env, true);
   for (const name of ["SOLANA_RPC_URL", "SUPABASE_URL"])
     if (new URL(required(name)).protocol !== "https:")
       throw Error(`${name} requires HTTPS`);

@@ -2,6 +2,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 const names = [
   "DATABASE_URL",
+  "DATABASE_CA_CERT_BASE64",
   "AUTH_SECRET",
   "TOTP_ENCRYPTION_KEY",
   "SUPABASE_SERVICE_ROLE_KEY",

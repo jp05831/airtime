@@ -10,6 +10,7 @@ const names = [
   "HELIUS_WEBHOOK_SECRET",
   "WORKER_SECRET",
   "DATABASE_URL",
+  "DATABASE_CA_CERT_BASE64",
 ];
 const excluded = new Set(["node_modules", ".git", ".next-dev", "artifacts"]);
 let files = 0;
