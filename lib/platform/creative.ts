@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import { access, mkdtemp, writeFile, rm } from "node:fs/promises";
+import { constants } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import ffprobe from "@ffprobe-installer/ffprobe";
@@ -13,6 +14,28 @@ export type VideoMetadata = {
   codec: string;
   audioReview: string;
 };
+export class FfprobeUnavailableError extends Error {
+  constructor() {
+    super("Video validation is temporarily unavailable. Please try again later.");
+    this.name = "FfprobeUnavailableError";
+  }
+}
+export function resolveFfprobePath(
+  configured = process.env.FFPROBE_PATH,
+  bundled = ffprobe.path,
+) {
+  return configured?.trim() || bundled || "";
+}
+async function availableFfprobePath() {
+  const path = resolveFfprobePath();
+  if (!path) throw new FfprobeUnavailableError();
+  try {
+    await access(path, constants.X_OK);
+    return path;
+  } catch {
+    throw new FfprobeUnavailableError();
+  }
+}
 export function validateVideoMetadata(raw: any): VideoMetadata {
   const video = raw.streams?.find((s: any) => s.codec_type === "video"),
     audio = raw.streams?.find((s: any) => s.codec_type === "audio");
@@ -87,6 +110,7 @@ export function validateVideoMetadata(raw: any): VideoMetadata {
 }
 export async function probeVideo(bytes: Buffer) {
   validateUpload(bytes, "video/mp4");
+  const ffprobePath = await availableFfprobePath();
   const directory = await mkdtemp(join(tmpdir(), "airtime-creative-"));
   try {
     const path = join(directory, "creative.mp4");
@@ -94,14 +118,7 @@ export async function probeVideo(bytes: Buffer) {
     let result;
     try {
       result = await promisify(execFile)(
-        process.env.FFPROBE_PATH ||
-          (process.env.NODE_ENV === "production"
-            ? (() => {
-                throw Error(
-                  "Maintained production media validator is not configured",
-                );
-              })()
-            : ffprobe.path),
+        ffprobePath,
         [
           "-protocol_whitelist",
           "file,pipe",

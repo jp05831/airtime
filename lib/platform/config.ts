@@ -58,7 +58,6 @@ export function validatePlatform() {
     "PLATFORM_FEE_CENTS",
     "TOTAL_CAMPAIGN_PRICE_CENTS",
     "SOL_QUOTE_TTL_SECONDS",
-    "FFPROBE_PATH",
   ])
     required(name);
   platformConfig();

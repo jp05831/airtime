@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@ffprobe-installer/ffprobe": "^2.1.2",
+    "@ffprobe-installer/linux-x64": "^5.2.0",
     "@solana/web3.js": "^1.98.4",
     "@supabase/supabase-js": "^2.0.0",
     "@tailwindcss/postcss": "^4.3.3",

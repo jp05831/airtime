@@ -4,7 +4,7 @@ Creative approval first → customer payment second → campaign activation thir
 
 - [ ] Revoke the historical exposed credential; create a replacement OAuth client through the official Vibe developer dashboard. Never reuse or paste the old credential.
 - [ ] Create Supabase/Postgres and run migrations 001 → 002 → 003 → 004 → 005. Preserve existing data and keep RLS enabled.
-- [ ] Configure private storage, maintained ffprobe and hosting able to process the configured video size; set the final domain.
+- [ ] Configure private storage and hosting able to process the configured video size; the Vercel upload function includes the bundled static FFprobe binary. Set `FFPROBE_PATH` only if intentionally overriding it.
 - [ ] Configure APP_ORIGIN, server-only database/auth/storage secrets and allowlisted administrator with TOTP AAL2.
 - [ ] Configure mainnet RPC, authenticated Helius webhook, public campaign-payment wallet and a unique server-side `WORKER_SECRET` (at least 32 characters).
 - [ ] On Vercel Hobby, configure cron-job.org to send `POST https://FINAL_DOMAIN/api/worker` every five minutes with `Authorization: Bearer <WORKER_SECRET>`. Store the secret in Vercel environment settings and cron-job.org protected request headers. Vercel Cron is not configured.

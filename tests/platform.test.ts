@@ -147,8 +147,13 @@ import {
   processPlatformSignature,
   runPlatformSync,
 } from "@/lib/platform/worker";
-import { validateVideoMetadata, probeVideo } from "@/lib/platform/creative";
-import { platformConfig } from "@/lib/platform/config";
+import {
+  validateVideoMetadata,
+  probeVideo,
+  resolveFfprobePath,
+  FfprobeUnavailableError,
+} from "@/lib/platform/creative";
+import { platformConfig, validatePlatform } from "@/lib/platform/config";
 import { PUMP, PUMP_AMM, canonicalPool } from "@/lib/server/protocol";
 import { WSOL, ZERO } from "@/lib/accounting";
 const owner = Keypair.generate(),
@@ -1188,6 +1193,27 @@ describe("Creative, targeting and payment worker", () => {
     const b = Buffer.alloc(40);
     b.write("ftyp", 4);
     await expect(probeVideo(b)).rejects.toThrow();
+  });
+  it("prefers FFPROBE_PATH and falls back to the bundled static binary", async () => {
+    vi.stubEnv("FFPROBE_PATH", "/opt/custom/ffprobe");
+    expect(resolveFfprobePath()).toBe("/opt/custom/ffprobe");
+    vi.stubEnv("FFPROBE_PATH", "");
+    expect(resolveFfprobePath()).toContain(
+      "@ffprobe-installer/linux-x64/ffprobe",
+    );
+    expect(() => validatePlatform()).not.toThrow();
+    vi.unstubAllEnvs();
+  });
+  it("returns a controlled unavailable error when FFprobe cannot be executed", async () => {
+    vi.stubEnv("FFPROBE_PATH", "/missing/airtime-ffprobe");
+    const bytes = await readFile("tests/fixtures/technical-test-15s.mp4");
+    await expect(probeVideo(bytes)).rejects.toBeInstanceOf(
+      FfprobeUnavailableError,
+    );
+    await expect(probeVideo(bytes)).rejects.toThrow(
+      "Video validation is temporarily unavailable",
+    );
+    vi.unstubAllEnvs();
   });
   it("allows adults only, rejects invalid ZIP codes and requires HTTPS destinations", async () => {
     const data = await brief();

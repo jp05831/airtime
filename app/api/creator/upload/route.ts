@@ -1,10 +1,13 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { handle, limitedBytes, HttpError } from "@/lib/server/http";
 import { requireCreator, creatorLimit } from "@/lib/platform/auth";
 import { db } from "@/lib/server/db";
 import { storage, validateUpload, maxCreativeBytes } from "@/lib/server/uploads";
-import { probeVideo } from "@/lib/platform/creative";
+import {
+  FfprobeUnavailableError,
+  probeVideo,
+} from "@/lib/platform/creative";
 import { platformAvailable } from "@/lib/platform/config";
 export const maxDuration = 60;
 export const POST = handle(async (r) => {
@@ -26,6 +29,11 @@ export const POST = handle(async (r) => {
   try {
     metadata = await probeVideo(Buffer.from(await file.arrayBuffer()));
   } catch (e) {
+    if (e instanceof FfprobeUnavailableError)
+      return NextResponse.json(
+        { error: e.message },
+        { status: 503, headers: { "Cache-Control": "no-store" } },
+      );
     throw new HttpError(400, (e as Error).message);
   }
   const id = randomUUID(),
