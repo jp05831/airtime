@@ -69,8 +69,8 @@ vi.mock("@/lib/server/db", () => {
       ),
   };
 });
-vi.mock("@/lib/server/chain", () => ({
-  GENESIS: "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+vi.mock("@/lib/server/chain", async (original) => ({
+  ...(await original<typeof import("@/lib/server/chain")>()),
   connection: () => store.connection,
   queue: async (signature: string, payload: unknown) => {
     const r = await store.db.query(
@@ -290,7 +290,9 @@ function rpcFixture(
   };
   return {
     rpcEndpoint: "https://mainnet-test.helius-rpc.com",
-    getGenesisHash: vi.fn(async () => "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"),
+    getGenesisHash: vi.fn(
+      async () => "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d",
+    ),
     getMultipleAccountsInfoAndContext: vi.fn(async (keys: PublicKey[]) => ({
       context: { slot: 123 },
       value: keys.map(byAddress),
@@ -1465,13 +1467,20 @@ describe("Complete wallet-to-reviewed-campaign journey (isolated RPC/storage)", 
       saveCampaign(a, { ...previous.brief, id, mediaBudgetCents: "70000" }),
     ).rejects.toThrow("fixed");
   });
-  it("operates only on mainnet and prevents admin-created fake completed records", async () => {
-    store.connection.getGenesisHash.mockResolvedValue("devnet");
-    await expect(verifyCoinAuthority(a.wallet, mint)).rejects.toThrow(
-      "Mainnet",
-    );
-    expect(canTransition("DRAFT", "COMPLETED")).toBe(false);
-  });
+  it.each([
+    ["truncated mainnet", "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"],
+    ["devnet", "EtWTRABZaYq6iMfeYKouRu166VU2xqa1"],
+    ["testnet", "4uhcVJyU9pJkvQyS88uRDiswHXSCkY3zQawwpjk2NsNY"],
+  ])(
+    "rejects %s RPCs and prevents admin-created fake completed records",
+    async (_network, hash) => {
+      store.connection.getGenesisHash.mockResolvedValue(hash);
+      await expect(verifyCoinAuthority(a.wallet, mint)).rejects.toThrow(
+        "Mainnet",
+      );
+      expect(canTransition("DRAFT", "COMPLETED")).toBe(false);
+    },
+  );
 });
 
 describe("Expired quote recovery without retransmitting payments", () => {

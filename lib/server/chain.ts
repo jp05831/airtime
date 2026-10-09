@@ -13,7 +13,7 @@ import {
 import { refreshPrice } from "./price";
 import { redact } from "./http";
 import { funding } from "./queries";
-export const GENESIS = "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp";
+export const GENESIS = "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d";
 export function connection(timeoutMs = 10000) {
   return new Connection(required("SOLANA_RPC_URL"), {
     commitment: "finalized",

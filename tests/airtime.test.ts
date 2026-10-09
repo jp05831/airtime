@@ -464,10 +464,27 @@ describe("Finalized protocol monitoring", () => {
       }),
     ).toHaveLength(0);
   });
-  it("requires finalized signature status", async () => {
+  it.each([
+    ["truncated mainnet", "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"],
+    ["devnet", "EtWTRABZaYq6iMfeYKouRu166VU2xqa1"],
+    ["testnet", "4uhcVJyU9pJkvQyS88uRDiswHXSCkY3zQawwpjk2NsNY"],
+  ])("rejects %s RPC genesis hashes", async (_network, hash) => {
+    const conn = {
+      getGenesisHash: async () => hash,
+      getSignatureStatuses: vi.fn(),
+    };
+    await expect(processSignature(sig, conn as any)).rejects.toThrow(
+      "RPC must be mainnet",
+    );
+    await expect(runSync(conn as any)).rejects.toThrow("RPC must be mainnet");
+    expect(conn.getSignatureStatuses).not.toHaveBeenCalled();
+  });
+  it("accepts the complete mainnet genesis hash before checking finality", async () => {
+    expect(GENESIS).toBe("5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d");
     await queue(sig, {});
     const conn = {
-      getGenesisHash: async () => GENESIS,
+      getGenesisHash: async () =>
+        "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d",
       getSignatureStatuses: async () => ({
         value: [{ confirmationStatus: "confirmed" }],
       }),
