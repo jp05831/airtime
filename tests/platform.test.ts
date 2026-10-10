@@ -23,6 +23,11 @@ import {
 import pump from "@/vendor/pump/pump.json";
 import amm from "@/vendor/pump/pump_amm.json";
 import fees from "@/vendor/pump/pump_fees.json";
+import {
+  AUTHORITY_REVISION,
+  USDC,
+  TOKEN_2022,
+} from "@/lib/platform/pump-authority";
 vi.mock("@/lib/vibe/review", () => ({
   assertCreativeApproved: async (id: string) => {
     const row = (
@@ -221,11 +226,14 @@ function rpcFixture(
     sharing?: any;
     holder?: boolean;
     quote?: string;
+    current?: boolean;
+    token2022?: boolean;
   } = {},
 ) {
   const creator = options.creator || key(owner),
     curve = pda(PUMP, ["bonding-curve", new PublicKey(mint)]),
-    pool = new PublicKey(canonicalPool(mint, WSOL)),
+    pairedAsset = options.quote === USDC ? USDC : WSOL,
+    pool = new PublicKey(canonicalPool(mint, pairedAsset)),
     sharingKey = pda(fees.address, ["sharing-config", new PublicKey(mint)]),
     curveVault = pda(PUMP, ["creator-vault", new PublicKey(creator)]),
     ammVault = pda(PUMP_AMM, ["creator_vault", new PublicKey(creator)]),
@@ -236,30 +244,61 @@ function rpcFixture(
   ammVault.toBuffer().copy(token, 32);
   token.writeBigUInt64LE(20000000n, 64);
   token[108] = 1;
+  const mintData = Buffer.alloc(options.token2022 ? 234 : 82);
+  mintData[44] = 6;
+  mintData[45] = 1;
+  if (options.token2022) {
+    mintData[165] = 1; // Token-2022 AccountType::Mint.
+    mintData.writeUInt16LE(18, 166); // MetadataPointer extension.
+    mintData.writeUInt16LE(64, 168);
+    new PublicKey(mint).toBuffer().copy(mintData, 202);
+  }
+  const curveData = account(pump, "BondingCurve", {
+    creator,
+    complete: options.complete,
+    quote_mint: options.quote || ZERO,
+    is_holder_reward: options.holder,
+  });
+  // Independent wire fixtures for the appended v3 fields, not generated from
+  // AIRTIME's new decoder schema. Nonzero counters reproduce the old mismatch.
+  const curveSuffix = Buffer.alloc(41);
+  curveSuffix.writeBigUInt64LE(123n, 0); // creator_fee at account offset 125.
+  curveSuffix.writeBigUInt64LE(456n, 8); // protocol_fees at 133.
+  curveSuffix.writeBigUInt64LE(30000000000n, 17); // initial reserves at 142.
+  curveSuffix.writeBigUInt64LE(10n, 25); // post_complete_base_out at 150.
+  curveSuffix.writeBigUInt64LE(20n, 33); // post_complete_quote_in at 158.
+  const poolData = account(amm, "Pool", {
+    creator: pda(PUMP, ["pool-authority", new PublicKey(mint)]).toBase58(),
+    coin_creator: creator,
+    base_mint: mint,
+    quote_mint: pairedAsset,
+    index: 0,
+    is_holder_reward: options.holder,
+  });
+  const poolSuffix = Buffer.alloc(16);
+  poolSuffix.writeBigUInt64LE(456n, 0); // protocol_fees at account offset 271.
+  poolSuffix.writeBigUInt64LE(123n, 8); // creator_fees at 279.
   const byAddress = (pub: PublicKey) => {
     if (pub.toBase58() === mint)
-      return { owner: tokenProgram, data: Buffer.alloc(82), lamports: 1000000 };
+      return {
+        owner: options.token2022 ? new PublicKey(TOKEN_2022) : tokenProgram,
+        data: mintData,
+        lamports: 1000000,
+      };
     if (pub.equals(curve))
       return {
         owner: new PublicKey(PUMP),
-        data: account(pump, "BondingCurve", {
-          creator,
-          complete: options.complete,
-          quote_mint: options.quote || ZERO,
-          is_holder_reward: options.holder,
-        }),
+        data: options.current
+          ? Buffer.concat([curveData, curveSuffix])
+          : curveData,
         lamports: 1000000,
       };
     if (pub.equals(pool))
       return {
         owner: new PublicKey(PUMP_AMM),
-        data: account(amm, "Pool", {
-          coin_creator: creator,
-          base_mint: mint,
-          quote_mint: WSOL,
-          index: 0,
-          is_holder_reward: options.holder,
-        }),
+        data: options.current
+          ? Buffer.concat([poolData, poolSuffix])
+          : poolData,
         lamports: 1000000,
       };
     if (pub.equals(sharingKey) && options.sharing)
@@ -684,6 +723,222 @@ describe("Wallet authentication", () => {
   });
 });
 describe("Official Pump coin authority and safe claims", () => {
+  function changeAccounts(change: (accounts: any[]) => void) {
+    const original = store.connection.getMultipleAccountsInfoAndContext;
+    store.connection.getMultipleAccountsInfoAndContext = vi.fn(
+      async (...args: any[]) => {
+        const result = await original(...args);
+        change(result.value);
+        return result;
+      },
+    );
+  }
+  it.each([ZERO, WSOL, USDC])(
+    "verifies new Token-2022 curves paired with %s",
+    async (quote) => {
+      store.connection = rpcFixture({ current: true, token2022: true, quote });
+      const proof = await verifyCoinAuthority(a.wallet, mint);
+      expect(proof.role).toBe("CREATOR");
+      expect(proof.creator).toBe(a.wallet);
+      expect(proof.quote).toBe(quote);
+      expect(proof.evidence).toMatchObject({
+        revision: AUTHORITY_REVISION,
+        curveLayout: "BondingCurve:166",
+      });
+      expect(proof.pool.toBase58()).toBe(
+        canonicalPool(mint, quote === USDC ? USDC : WSOL),
+      );
+    },
+  );
+  it.each([WSOL, USDC])(
+    "verifies current graduated pools paired with %s",
+    async (quote) => {
+      store.connection = rpcFixture({
+        current: true,
+        token2022: true,
+        complete: true,
+        quote,
+      });
+      const proof = await verifyCoinAuthority(a.wallet, mint);
+      expect(proof.venue).toBe("Canonical PumpSwap");
+      expect(proof.evidence).toMatchObject({ poolLayout: "Pool:287" });
+      expect(proof.quote).toBe(quote);
+    },
+  );
+  it.each([81, 82, 83, 115, 124, 125, 150, 151])(
+    "retains legacy curve compatibility at %i bytes",
+    async (size) => {
+      changeAccounts((accounts) => {
+        const data = Buffer.alloc(size);
+        accounts[1].data.subarray(0, Math.min(size, 125)).copy(data);
+        accounts[1].data = data;
+      });
+      const proof = await verifyCoinAuthority(a.wallet, mint);
+      expect(proof.creator).toBe(a.wallet);
+      expect(proof.quote).toBe(ZERO);
+    },
+  );
+  it.each([243, 244, 245, 261, 270, 271, 300])(
+    "retains legacy/extended pool compatibility at %i bytes",
+    async (size) => {
+      store.connection = rpcFixture({ complete: true });
+      changeAccounts((accounts) => {
+        const data = Buffer.alloc(size);
+        accounts[2].data.subarray(0, Math.min(size, 271)).copy(data);
+        accounts[2].data = data;
+      });
+      expect((await verifyCoinAuthority(a.wallet, mint)).creator).toBe(
+        a.wallet,
+      );
+    },
+  );
+  it("rejects the wrong creator on the new layout, including USDC", async () => {
+    store.connection = rpcFixture({
+      current: true,
+      token2022: true,
+      quote: USDC,
+    });
+    await expect(verifyCoinAuthority(b.wallet, mint)).rejects.toThrow(
+      "does not control",
+    );
+  });
+  it("uses the current graduated pool authority instead of a stale curve creator", async () => {
+    store.connection = rpcFixture({ current: true, complete: true });
+    changeAccounts((accounts) => {
+      new PublicKey(b.wallet).toBuffer().copy(accounts[2].data, 211);
+    });
+    await expect(verifyCoinAuthority(a.wallet, mint)).rejects.toThrow(
+      "does not control",
+    );
+    expect((await verifyCoinAuthority(b.wallet, mint)).creator).toBe(b.wallet);
+  });
+  it.each([
+    "missing",
+    "uninitialized",
+    "token account",
+    "wrong owner",
+    "malformed mint",
+    "wrong Token-2022 type",
+  ])("rejects an invalid mint: %s", async (kind) => {
+    store.connection = rpcFixture({
+      current: true,
+      token2022: kind === "wrong Token-2022 type",
+    });
+    changeAccounts((accounts) => {
+      if (kind === "missing") accounts[0] = null;
+      else if (kind === "uninitialized") accounts[0].data[45] = 0;
+      else if (kind === "token account") accounts[0].data = Buffer.alloc(165);
+      else if (kind === "wrong owner")
+        accounts[0].owner = SystemProgram.programId;
+      else if (kind === "malformed mint") accounts[0].data = Buffer.alloc(12);
+      else accounts[0].data[165] = 2;
+    });
+    await expect(verifyCoinAuthority(a.wallet, mint)).rejects.toThrow(
+      "Token mint could not be verified",
+    );
+  });
+  it("rejects a real token mint without Pump provenance", async () => {
+    changeAccounts((accounts) => {
+      accounts[1] = accounts[2] = accounts[3] = null;
+    });
+    await expect(verifyCoinAuthority(a.wallet, mint)).rejects.toThrow(
+      "not a verified Pump coin",
+    );
+  });
+  it("rejects a curve with the wrong program owner", async () => {
+    changeAccounts((accounts) => {
+      accounts[1].owner = SystemProgram.programId;
+    });
+    await expect(verifyCoinAuthority(a.wallet, mint)).rejects.toThrow(
+      "not a verified Pump coin",
+    );
+  });
+  it("rejects a pool without the canonical Pump pool authority", async () => {
+    store.connection = rpcFixture({ current: true, complete: true });
+    changeAccounts((accounts) => {
+      new PublicKey(b.wallet).toBuffer().copy(accounts[2].data, 11);
+    });
+    await expect(verifyCoinAuthority(a.wallet, mint)).rejects.toThrow(
+      "Unsupported pool",
+    );
+  });
+  it("does not infer a missing legacy creator from metadata or the connected wallet", async () => {
+    changeAccounts((accounts) => {
+      accounts[1].data = accounts[1].data.subarray(0, 49);
+    });
+    await expect(verifyCoinAuthority(a.wallet, mint)).rejects.toThrow(
+      "not assigned a current creator",
+    );
+  });
+  it.each([
+    "curve extension",
+    "pool extension",
+    "partial creator",
+    "bad discriminator",
+    "invalid boolean",
+    "nonzero pool padding",
+  ])("returns a safe verification error for %s", async (kind) => {
+    store.connection = rpcFixture({
+      current: true,
+      complete: kind.includes("pool"),
+    });
+    changeAccounts((accounts) => {
+      if (kind === "curve extension")
+        accounts[1].data = Buffer.concat([accounts[1].data, Buffer.from([1])]);
+      else if (kind === "pool extension")
+        accounts[2].data = Buffer.concat([accounts[2].data, Buffer.alloc(1)]);
+      else if (kind === "partial creator")
+        accounts[1].data = accounts[1].data.subarray(0, 80);
+      else if (kind === "bad discriminator") accounts[1].data[0] ^= 1;
+      else if (kind === "invalid boolean") accounts[1].data[48] = 2;
+      else
+        accounts[2].data = Buffer.concat([
+          accounts[2].data,
+          Buffer.alloc(12),
+          Buffer.from([1]),
+        ]);
+    });
+    const route = await import("@/app/api/creator/coins/route");
+    const response = await route.POST(
+      request("/api/creator/coins", await session(a), { mint }),
+    );
+    expect(response.status).toBe(422);
+    const json = await response.json();
+    expect(json.error).toContain("unsupported Pump account version");
+    expect(json.error).not.toContain("IDL");
+    expect(
+      (await q("SELECT * FROM coin_authorities WHERE user_id=$1", [a.userId]))
+        .rows,
+    ).toHaveLength(0);
+  });
+  it("adds a newly launched coin through the production verification route", async () => {
+    store.connection = rpcFixture({ current: true, token2022: true });
+    const route = await import("@/app/api/creator/coins/route");
+    const response = await route.POST(
+      request("/api/creator/coins", await session(a), { mint }),
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      mint,
+      role: "CREATOR",
+      evidence: {
+        revision: AUTHORITY_REVISION,
+        curveLayout: "BondingCurve:166",
+      },
+    });
+  });
+  it("keeps USDC verification separate from the existing SOL-only claim flow", async () => {
+    store.connection = rpcFixture({
+      current: true,
+      token2022: true,
+      quote: USDC,
+    });
+    const proof = await verifyCoinAuthority(a.wallet, mint);
+    await expect(buildClaim(proof, a.wallet, "CURVE")).rejects.toThrow(
+      "USDC fee claims are not available",
+    );
+    expect(store.connection.getLatestBlockhash).not.toHaveBeenCalled();
+  });
   it("verifies a bonding-curve creator with official account bytes", async () => {
     expect((await verifyCoinAuthority(a.wallet, mint)).role).toBe("CREATOR");
   });

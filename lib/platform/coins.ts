@@ -9,19 +9,18 @@ import pump from "@/vendor/pump/pump.json";
 import amm from "@/vendor/pump/pump_amm.json";
 import fees from "@/vendor/pump/pump_fees.json";
 import { connection, GENESIS } from "@/lib/server/chain";
-import {
-  decode,
-  canonicalPool,
-  poolState,
-  PUMP,
-  PUMP_AMM,
-  REVISION,
-} from "@/lib/server/protocol";
+import { decode, canonicalPool, PUMP, PUMP_AMM } from "@/lib/server/protocol";
 import { ZERO, WSOL } from "@/lib/accounting";
 import { address, externalUrl } from "@/lib/validation";
 import { db } from "@/lib/server/db";
 import { HttpError } from "@/lib/server/http";
 import type { CreatorIdentity, CoinView } from "./model";
+import {
+  authorityAccount,
+  verifyMintAccount,
+  AUTHORITY_REVISION,
+  USDC,
+} from "./pump-authority";
 const TOKEN = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 // Constants are taken from the official IDL (ATA below is the canonical address).
 export const TOKEN_PROGRAM = new PublicKey(TOKEN),
@@ -46,7 +45,14 @@ function accountDecode(idl: any, name: string, data: Buffer) {
   const tag = idl.accounts.find((x: any) => x.name === name)?.discriminator;
   if (!tag || !data.subarray(0, 8).equals(Buffer.from(tag)))
     throw new HttpError(403, "Official account layout not recognized");
-  return decode(idl, name, data.subarray(8), { accountCompatibility: true });
+  try {
+    return decode(idl, name, data.subarray(8), { accountCompatibility: true });
+  } catch {
+    throw new HttpError(
+      422,
+      "This coin's fee authority account version is not supported. Creator verification could not be completed.",
+    );
+  }
 }
 export type AuthorityProof = {
   mint: string;
@@ -72,46 +78,88 @@ export async function verifyCoinAuthority(
   if ((await conn.getGenesisHash()) !== GENESIS)
     throw new HttpError(503, "Mainnet RPC required");
   const curve = pda(PUMP, ["bonding-curve", new PublicKey(mint)]),
-    pool = new PublicKey(canonicalPool(mint, WSOL));
+    solPool = new PublicKey(canonicalPool(mint, WSOL)),
+    usdcPool = new PublicKey(canonicalPool(mint, USDC));
   const result = await conn.getMultipleAccountsInfoAndContext(
-    [new PublicKey(mint), curve, pool],
+    [new PublicKey(mint), curve, solPool, usdcPool],
     { commitment: "finalized" },
   );
-  const [mintAccount, curveAccount, poolAccount] = result.value;
-  if (
-    !mintAccount ||
-    ![TOKEN, "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"].includes(
-      mintAccount.owner.toBase58(),
-    )
-  )
-    throw new HttpError(403, "Token mint could not be verified");
-  let state: any, creator: string, venue: string;
-  if (curveAccount?.owner.toBase58() === PUMP) {
-    state = accountDecode(pump, "BondingCurve", curveAccount.data);
+  const [mintAccount, curveAccount, solPoolAccount, usdcPoolAccount] =
+    result.value;
+  verifyMintAccount(mintAccount);
+  let state: any,
+    creator: string,
+    venue: string,
+    pool = solPool,
+    pairedAsset = WSOL,
+    curveLayout: string | null = null,
+    poolLayout: string | null = null;
+  if (curveAccount) {
+    if (curveAccount.owner.toBase58() !== PUMP || curveAccount.executable)
+      throw new HttpError(403, "This mint is not a verified Pump coin");
+    const decoded = authorityAccount("BondingCurve", curveAccount.data);
+    state = decoded.state;
+    curveLayout = decoded.layout;
     creator = state.creator;
     venue = "Pump bonding curve";
+    if (state.is_holder_reward || state.is_cashback_coin)
+      throw new HttpError(
+        403,
+        "Holder-reward or cashback coins do not prove creator-controlled fee funds",
+      );
+    if (![ZERO, WSOL, USDC].includes(state.quote_mint))
+      throw new HttpError(
+        403,
+        "This version supports SOL-paired and USDC-paired coins only",
+      );
+    pairedAsset = state.quote_mint === USDC ? USDC : WSOL;
+    pool = pairedAsset === USDC ? usdcPool : solPool;
     if (state.complete) {
-      if (!poolAccount || poolAccount.owner.toBase58() !== PUMP_AMM)
+      const poolAccount =
+        pairedAsset === USDC ? usdcPoolAccount : solPoolAccount;
+      if (
+        !poolAccount ||
+        poolAccount.owner.toBase58() !== PUMP_AMM ||
+        poolAccount.executable
+      )
         throw new HttpError(403, "Canonical graduated pool unavailable");
-      state = poolState(poolAccount.data);
+      const decodedPool = authorityAccount("Pool", poolAccount.data);
+      state = decodedPool.state;
+      poolLayout = decodedPool.layout;
       creator = state.coin_creator;
       venue = "Canonical PumpSwap";
     }
-  } else if (poolAccount?.owner.toBase58() === PUMP_AMM) {
-    state = poolState(poolAccount.data);
+  } else if (
+    solPoolAccount?.owner.toBase58() === PUMP_AMM ||
+    usdcPoolAccount?.owner.toBase58() === PUMP_AMM
+  ) {
+    pairedAsset = solPoolAccount?.owner.toBase58() === PUMP_AMM ? WSOL : USDC;
+    pool = pairedAsset === USDC ? usdcPool : solPool;
+    const poolAccount =
+      pairedAsset === USDC ? usdcPoolAccount! : solPoolAccount!;
+    if (poolAccount.executable)
+      throw new HttpError(403, "This mint is not a verified Pump coin");
+    const decodedPool = authorityAccount("Pool", poolAccount.data);
+    state = decodedPool.state;
+    poolLayout = decodedPool.layout;
     creator = state.coin_creator;
     venue = "Canonical PumpSwap";
   } else throw new HttpError(403, "This mint is not a verified Pump coin");
   if (
     venue === "Canonical PumpSwap" &&
     (state.base_mint !== mint ||
-      state.quote_mint !== WSOL ||
-      state.index !== 0n)
+      state.quote_mint !== pairedAsset ||
+      state.index !== 0n ||
+      state.creator !==
+        pda(PUMP, ["pool-authority", new PublicKey(mint)]).toBase58())
   )
     throw new HttpError(403, "Unsupported pool or paired asset");
   const quote = state.quote_mint;
-  if (![ZERO, WSOL].includes(quote))
-    throw new HttpError(403, "This version supports SOL-paired coins only");
+  if (![ZERO, WSOL, USDC].includes(quote))
+    throw new HttpError(
+      403,
+      "This version supports SOL-paired and USDC-paired coins only",
+    );
   if (state.is_holder_reward || state.is_cashback_coin)
     throw new HttpError(
       403,
@@ -123,6 +171,11 @@ export async function verifyCoinAuthority(
   ]);
   let sharing: any = null,
     role: AuthorityProof["role"] = "CREATOR";
+  if (creator === ZERO)
+    throw new HttpError(
+      403,
+      "Pump has not assigned a current creator authority to this coin yet. Retry after its on-chain creator is set.",
+    );
   if (creator !== wallet) {
     if (creator !== sharingAddress.toBase58())
       throw new HttpError(403, "This wallet does not control this coin");
@@ -132,6 +185,7 @@ export async function verifyCoinAuthority(
     sharing = accountDecode(fees, "SharingConfig", a.data);
     if (
       sharing.mint !== mint ||
+      ![1n, 2n].includes(sharing.version) ||
       sharing.status !== "Active" ||
       sharing.shareholders.length < 1 ||
       sharing.shareholders.length > 16 ||
@@ -168,7 +222,9 @@ export async function verifyCoinAuthority(
     cashback: !!state.is_cashback_coin,
     slot: result.context.slot,
     evidence: {
-      revision: REVISION,
+      revision: AUTHORITY_REVISION,
+      curveLayout,
+      poolLayout,
       slot: result.context.slot,
       curve: curve.toBase58(),
       pool: pool.toBase58(),
@@ -309,6 +365,12 @@ export async function claimBalances(
   proof: AuthorityProof,
   conn: Connection = connection(),
 ) {
+  // USDC authority verification is supported; existing claims remain SOL-only.
+  if (proof.quote === USDC)
+    throw new HttpError(
+      409,
+      "USDC-paired coin authority is verified, but USDC fee claims are not available in AIRTIME. Use Pump to claim these fees.",
+    );
   const vault = pda(PUMP, ["creator-vault", new PublicKey(proof.creator)]),
     ammVault = pda(PUMP_AMM, ["creator_vault", new PublicKey(proof.creator)]),
     ammAta = associated(ammVault);
@@ -361,7 +423,10 @@ export async function coinView(
     const p = await verifyCoinAuthority(wallet, row.mint, rpc);
     authorityCurrent = true;
     sharing = !!p.sharing;
-    claimable = p.role !== "FEE_ADMIN";
+    claimable = p.role !== "FEE_ADMIN" && p.quote !== USDC;
+    if (p.quote === USDC)
+      notice =
+        "USDC-paired coin authority verified. Use Pump to claim USDC creator fees; AIRTIME currently supports SOL fee claims only.";
     const b = await claimBalances(p, rpc);
     curve = b.curve.toString();
     ammAmount = b.amm.toString();
