@@ -8,7 +8,9 @@ import {
   vi,
 } from "vitest";
 import { PGlite } from "@electric-sql/pglite";
-import { readFile } from "node:fs/promises";
+import { readFile, mkdtemp, writeFile, chmod, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import nacl from "tweetnacl";
 import bs58 from "bs58";
@@ -1453,9 +1455,9 @@ describe("Creative, targeting and payment worker", () => {
   });
   it("prefers FFPROBE_PATH and falls back to the bundled static binary", async () => {
     vi.stubEnv("FFPROBE_PATH", "/opt/custom/ffprobe");
-    expect(resolveFfprobePath()).toBe("/opt/custom/ffprobe");
+    expect(await resolveFfprobePath()).toBe("/opt/custom/ffprobe");
     vi.stubEnv("FFPROBE_PATH", "");
-    expect(resolveFfprobePath()).toContain(
+    expect(await resolveFfprobePath()).toContain(
       "@ffprobe-installer/linux-x64/ffprobe",
     );
     expect(() => validatePlatform()).not.toThrow();
@@ -1472,6 +1474,53 @@ describe("Creative, targeting and payment worker", () => {
     );
     vi.unstubAllEnvs();
   });
+  it.each(["missing executable", "unstartable executable"])(
+    "returns a safe 503 and stores no upload for %s",
+    async (failure) => {
+      const directory = await mkdtemp(join(tmpdir(), "airtime-ffprobe-test-"));
+      const path = join(directory, "ffprobe");
+      try {
+        if (failure === "unstartable executable") {
+          // X_OK passes, but the kernel cannot launch the absent interpreter.
+          await writeFile(path, "#!/missing/airtime-ffprobe-interpreter\n");
+          await chmod(path, 0o700);
+        }
+        vi.stubEnv("FFPROBE_PATH", path);
+        const form = new FormData();
+        form.set(
+          "file",
+          new File(
+            [await readFile("tests/fixtures/technical-test-15s.mp4")],
+            "commercial.mp4",
+            { type: "video/mp4" },
+          ),
+        );
+        const { POST } = await import("@/app/api/creator/upload/route");
+        const response = await POST(
+          new NextRequest("http://localhost:3200/api/creator/upload", {
+            method: "POST",
+            headers: {
+              origin: "http://localhost:3200",
+              cookie: "airtime_creator=" + (await session(a)),
+            },
+            body: form,
+          }),
+        );
+        expect(response.status).toBe(503);
+        expect(await response.json()).toEqual({
+          error:
+            "Video validation is temporarily unavailable. Please try again later.",
+        });
+        expect(store.objects.size).toBe(0);
+        expect((await q("SELECT * FROM campaign_creatives")).rows).toHaveLength(
+          0,
+        );
+      } finally {
+        vi.unstubAllEnvs();
+        await rm(directory, { recursive: true, force: true });
+      }
+    },
+  );
   it("allows adults only, rejects invalid ZIP codes and requires HTTPS destinations", async () => {
     const data = await brief();
     expect(() =>

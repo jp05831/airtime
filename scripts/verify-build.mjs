@@ -30,10 +30,13 @@ const trace = JSON.parse(
     "utf8",
   ),
 );
-if (
-  !trace.files.some((file) =>
-    file.includes("@ffprobe-installer/linux-x64/ffprobe"),
+for (const required of ["package.json", "ffprobe"])
+  if (
+    !trace.files.some((file) =>
+      file.endsWith(`@ffprobe-installer/linux-x64/${required}`),
+    )
   )
-)
-  throw Error("Static FFprobe binary missing from creator upload output trace");
-console.log("Creator upload output trace includes static FFprobe.");
+    throw Error(`FFprobe ${required} missing from creator upload output trace`);
+console.log(
+  "Creator upload output trace includes the complete FFprobe runtime.",
+);

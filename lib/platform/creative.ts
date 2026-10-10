@@ -4,7 +4,6 @@ import { access, mkdtemp, writeFile, rm } from "node:fs/promises";
 import { constants } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import ffprobe from "@ffprobe-installer/ffprobe";
 import { validateUpload } from "@/lib/server/uploads";
 export type VideoMetadata = {
   duration: number;
@@ -16,18 +15,29 @@ export type VideoMetadata = {
 };
 export class FfprobeUnavailableError extends Error {
   constructor() {
-    super("Video validation is temporarily unavailable. Please try again later.");
+    super(
+      "Video validation is temporarily unavailable. Please try again later.",
+    );
     this.name = "FfprobeUnavailableError";
   }
 }
-export function resolveFfprobePath(
+export async function resolveFfprobePath(
   configured = process.env.FFPROBE_PATH,
-  bundled = ffprobe.path,
+  bundled?: string,
 ) {
-  return configured?.trim() || bundled || "";
+  if (configured?.trim()) return configured.trim();
+  if (bundled !== undefined) return bundled;
+  try {
+    // Resolve on upload, not when importing the route. Missing runtime packages
+    // must reach the controlled unavailable response, including on Vercel.
+    const { default: ffprobe } = await import("@ffprobe-installer/ffprobe");
+    return ffprobe.path || "";
+  } catch {
+    throw new FfprobeUnavailableError();
+  }
 }
 async function availableFfprobePath() {
-  const path = resolveFfprobePath();
+  const path = await resolveFfprobePath();
   if (!path) throw new FfprobeUnavailableError();
   try {
     await access(path, constants.X_OK);
@@ -135,7 +145,11 @@ export async function probeVideo(bytes: Buffer) {
         ],
         { timeout: 30000, maxBuffer: 2000000 },
       );
-    } catch {
+    } catch (error) {
+      // Spawn errors have string errno codes; a running FFprobe's numeric exit
+      // code indicates invalid media and retains the existing validation error.
+      if (typeof (error as NodeJS.ErrnoException).code === "string")
+        throw new FfprobeUnavailableError();
       throw Error(
         "Unable to read a valid standalone MP4. Re-export and try again.",
       );

@@ -4,7 +4,9 @@ export default {
   distDir: process.env.NODE_ENV === "development" ? ".next-dev" : ".next",
   outputFileTracingIncludes: {
     "/api/creator/upload": [
-      "./node_modules/@ffprobe-installer/linux-x64/ffprobe",
+      // The installer resolves both the executable and package metadata at runtime.
+      "./node_modules/@ffprobe-installer/linux-x64/**/*",
+      "./node_modules/@ffprobe-installer/ffprobe/**/*",
     ],
   },
   serverExternalPackages: ["pg", "@ffprobe-installer/ffprobe"],
