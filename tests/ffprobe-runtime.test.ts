@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { expect, it, vi } from "vitest";
 import {
   FfprobeUnavailableError,
@@ -22,8 +23,7 @@ it("allows route imports and an explicit local executable without loading the in
 it("fails closed with a safe unavailable error if the runtime package is missing", async () => {
   vi.stubEnv("FFPROBE_PATH", "");
   try {
-    const bytes = Buffer.alloc(40);
-    bytes.write("ftyp", 4);
+    const bytes = await readFile("tests/fixtures/technical-test-15s.mp4");
     await expect(probeVideo(bytes)).rejects.toBeInstanceOf(
       FfprobeUnavailableError,
     );

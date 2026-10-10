@@ -643,6 +643,12 @@ beforeAll(async () => {
       "utf8",
     ),
   );
+  await store.db.exec(
+    await readFile(
+      "supabase/migrations/007_upload_original_extension.sql",
+      "utf8",
+    ),
+  );
   await store.db.exec("COMMIT; SET search_path=airtime,public");
 });
 afterAll(async () => store.db.close());
@@ -1851,6 +1857,106 @@ describe("Private direct upload tickets", () => {
         ])
       ).rows[0].cleaned_at,
     ).toBeNull();
+  });
+  it.each(["video/mp4", "application/octet-stream"])(
+    "accepts real MP4 bytes stored as %s and persists approved MIME/extension",
+    async (mime) => {
+      const { token, ticket, path } = await setup({
+        name: "a".repeat(128) + ".MP4",
+      });
+      store.objectTypes.set(path, mime);
+      const row = (
+        await q(
+          "SELECT declared_mime,original_extension FROM creative_upload_tickets WHERE id=$1",
+          [ticket.ticketId],
+        )
+      ).rows[0];
+      expect(row).toEqual({
+        declared_mime: "video/mp4",
+        original_extension: "MP4",
+      });
+      const response = await finalizeTicket(token, ticket.ticketId);
+      expect(response.status).toBe(200);
+      expect((await response.json()).metadata).toMatchObject({
+        width: 1920,
+        audio: true,
+      });
+      expect((await finalizeTicket(token, ticket.ticketId)).status).toBe(409);
+    },
+  );
+  it("accepts a genuine MP4 with a leading free box instead of ftyp at byte 4", async () => {
+    const token = await session(a),
+      original = await readFile("tests/fixtures/technical-test-15s.mp4");
+    let offset = 0;
+    while (original.toString("ascii", offset + 4, offset + 8) !== "free")
+      offset += original.readUInt32BE(offset);
+    const length = original.readUInt32BE(offset);
+    // Move an existing free box before ftyp. Total pre-mdat length and all
+    // media chunk offsets remain unchanged; no fixture or FFprobe mocks.
+    const bytes = Buffer.concat([
+      original.subarray(offset, offset + length),
+      original.subarray(0, offset),
+      original.subarray(offset + length),
+    ]);
+    expect(bytes.toString("ascii", 4, 8)).toBe("free");
+    const ticket = await issueTicket(token, bytes);
+    directPut(ticket.uploadUrl, bytes, "application/octet-stream");
+    expect((await finalizeTicket(token, ticket.ticketId)).status).toBe(200);
+  });
+  it("rejects a spoofed .mp4, reports the container reason, deletes it and accepts a fresh-ticket retry", async () => {
+    const token = await session(a),
+      fake = Buffer.from("%PDF-1.7 renamed as video.mp4");
+    const bad = await issueTicket(token, fake);
+    const path = directPut(bad.uploadUrl, fake, "application/octet-stream");
+    const response = await finalizeTicket(token, bad.ticketId);
+    expect(response.status).toBe(422);
+    expect((await response.json()).error).toContain(
+      "Commercial MP4 container is invalid",
+    );
+    expect(store.objects.has(path)).toBe(false);
+    const bytes = await readFile("tests/fixtures/technical-test-15s.mp4");
+    const fresh = await issueTicket(token, bytes);
+    expect(fresh.ticketId).not.toBe(bad.ticketId);
+    directPut(fresh.uploadUrl, bytes, "application/octet-stream");
+    expect((await finalizeTicket(token, fresh.ticketId)).status).toBe(200);
+    expect((await finalizeTicket(token, bad.ticketId)).status).toBe(409);
+  });
+  it("requires real FFprobe validation even when spoofed bytes have valid MP4 top-level signatures", async () => {
+    const box = (type: string, payload: Buffer) => {
+      const header = Buffer.alloc(8);
+      header.writeUInt32BE(8 + payload.length);
+      header.write(type, 4);
+      return Buffer.concat([header, payload]);
+    };
+    const brands = Buffer.from("isom0000mp42");
+    const bytes = Buffer.concat([
+      box("ftyp", brands),
+      box("moov", Buffer.alloc(0)),
+      box("mdat", Buffer.from("not encoded video")),
+    ]);
+    const token = await session(a),
+      ticket = await issueTicket(token, bytes);
+    const path = directPut(ticket.uploadUrl, bytes, "application/octet-stream");
+    const response = await finalizeTicket(token, ticket.ticketId);
+    expect(response.status).toBe(422);
+    expect((await response.json()).error).toContain(
+      "does not contain a readable video stream",
+    );
+    expect(store.objects.has(path)).toBe(false);
+    expect((await q("SELECT * FROM campaign_creatives")).rows).toHaveLength(0);
+  });
+  it("rejects a truncated MP4 even if declared and stored sizes both match the partial object", async () => {
+    const token = await session(a),
+      bytes = (
+        await readFile("tests/fixtures/technical-test-15s.mp4")
+      ).subarray(0, 30000);
+    const ticket = await issueTicket(token, bytes);
+    const path = directPut(ticket.uploadUrl, bytes, "application/octet-stream");
+    const response = await finalizeTicket(token, ticket.ticketId);
+    expect(response.status).toBe(422);
+    expect((await response.json()).error).toContain("truncated");
+    expect(store.objects.has(path)).toBe(false);
+    expect((await q("SELECT * FROM campaign_creatives")).rows).toHaveLength(0);
   });
   it("claims finalization atomically and rejects concurrent/replayed requests", async () => {
     const { token, ticket } = await setup();

@@ -4,7 +4,7 @@ import { access, mkdtemp, writeFile, rm, open, stat } from "node:fs/promises";
 import { constants } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { validateUpload, maxCreativeBytes } from "@/lib/server/uploads";
+import { maxCreativeBytes } from "@/lib/server/uploads";
 export type VideoMetadata = {
   duration: number;
   width: number;
@@ -119,7 +119,8 @@ export function validateVideoMetadata(raw: any): VideoMetadata {
   };
 }
 export async function probeVideo(bytes: Buffer) {
-  validateUpload(bytes, "video/mp4");
+  if (bytes.length < 12 || bytes.length > maxCreativeBytes())
+    throw Error("File size invalid");
   const directory = await mkdtemp(join(tmpdir(), "airtime-creative-"));
   try {
     const path = join(directory, "creative.mp4");
@@ -135,14 +136,7 @@ export async function probeVideoFile(path: string, signal?: AbortSignal) {
   const info = await stat(path);
   if (!info.isFile() || info.size < 12 || info.size > maxCreativeBytes())
     throw Error("File size invalid");
-  const file = await open(path, "r");
-  try {
-    const header = Buffer.alloc(12);
-    const { bytesRead } = await file.read(header, 0, 12, 0);
-    validateUpload(header.subarray(0, bytesRead), "video/mp4");
-  } finally {
-    await file.close();
-  }
+  await inspectMp4Container(path, info.size);
   const ffprobePath = await availableFfprobePath();
   let result;
   try {
@@ -179,5 +173,93 @@ export async function probeVideoFile(path: string, signal?: AbortSignal) {
   } catch {
     throw Error("Commercial metadata could not be validated");
   }
+  if (
+    !String(metadata.format?.format_name || "")
+      .split(",")
+      .includes("mp4")
+  )
+    throw Error(
+      "Commercial is not a recognized MP4 container. Re-export as H.264 MP4.",
+    );
+  if (
+    !Array.isArray(metadata.streams) ||
+    !metadata.streams.some((stream: any) => stream.codec_type === "video")
+  )
+    throw Error(
+      "Commercial does not contain a readable video stream. Re-export as H.264 MP4.",
+    );
   return validateVideoMetadata(metadata);
+}
+
+// Walk bounded top-level ISO BMFF boxes rather than assuming ftyp is at byte 4.
+// Leading free/wide boxes and extended-size boxes are valid; malformed sizes,
+// truncated boxes, QuickTime-only brands and missing movie/media boxes are not.
+async function inspectMp4Container(path: string, size: number) {
+  const file = await open(path, "r");
+  const invalid = (reason: string): never => {
+    throw Error(
+      `Commercial MP4 container is invalid: ${reason}. Re-export as H.264 MP4.`,
+    );
+  };
+  try {
+    let offset = 0,
+      boxes = 0,
+      fileType = false,
+      movie = false,
+      media = false;
+    while (offset < size) {
+      if (++boxes > 4096) invalid("too many container boxes");
+      if (size - offset < 8) invalid("incomplete box header");
+      const header = Buffer.alloc(16);
+      const read = await file.read(
+        header,
+        0,
+        Math.min(16, size - offset),
+        offset,
+      );
+      if (read.bytesRead < 8) invalid("incomplete download");
+      const type = header.toString("ascii", 4, 8);
+      const shortSize = header.readUInt32BE(0);
+      let boxSize = shortSize,
+        headerSize = 8;
+      if (shortSize === 1) {
+        if (read.bytesRead < 16) invalid("incomplete extended box header");
+        const extended = header.readBigUInt64BE(8);
+        if (extended > BigInt(Number.MAX_SAFE_INTEGER))
+          invalid("invalid box size");
+        boxSize = Number(extended);
+        headerSize = 16;
+      } else if (shortSize === 0) boxSize = size - offset;
+      if (boxSize < headerSize || boxSize > size - offset)
+        invalid("truncated or invalid box size");
+      if (type === "ftyp") {
+        const length = boxSize - headerSize;
+        if (fileType || length < 8 || length > 4096 || length % 4)
+          invalid("invalid file-type signature");
+        const brands = Buffer.alloc(length);
+        if (
+          (await file.read(brands, 0, length, offset + headerSize))
+            .bytesRead !== length
+        )
+          invalid("incomplete file-type signature");
+        const compatible = [brands.toString("ascii", 0, 4)];
+        for (let at = 8; at < length; at += 4)
+          compatible.push(brands.toString("ascii", at, at + 4));
+        if (
+          !compatible.some((brand) =>
+            /^(isom|iso[2-9]|mp4[12]|avc1|dash|M4V |MSNV)$/.test(brand),
+          )
+        )
+          invalid("not an MP4 file-type signature");
+        fileType = true;
+      }
+      movie ||= type === "moov";
+      media ||= type === "mdat" && boxSize > headerSize;
+      offset += boxSize;
+    }
+    if (!fileType) invalid("missing MP4 file-type signature");
+    if (!movie || !media) invalid("missing movie or media data");
+  } finally {
+    await file.close();
+  }
 }

@@ -39,6 +39,7 @@ class FakeXHR {
   }
 }
 const ticket = {
+  mime: "video/mp4",
   ticketId: "e0cebe5e-8346-4183-abed-55796d15d140",
   uploadUrl:
     "https://project.supabase.co/storage/v1/object/upload/sign/bucket/video?token=capability",
@@ -193,6 +194,63 @@ describe("Browser direct storage transport", () => {
         vi.fn(),
       ),
     ).rejects.toThrow("5 and 90");
+  });
+  it.each(["application/octet-stream", ""])(
+    "sends the server-approved video/mp4 header for a %s browser File",
+    async (type) => {
+      const file = new File(["video"], "a".repeat(128) + ".MP4", { type });
+      await uploadCommercial(file, null, 25000000, vi.fn(), vi.fn());
+      expect(requests[0].headers["Content-Type"]).toBe("video/mp4");
+      expect(requests[0].body).toBe(file);
+      expect(
+        JSON.parse(String(vi.mocked(fetch).mock.calls[0][1]!.body)).name,
+      ).toBe(file.name);
+      expect(
+        JSON.parse(String(vi.mocked(fetch).mock.calls[0][1]!.body)).mime,
+      ).toBe("video/mp4");
+    },
+  );
+  it("requests a fresh ticket after failed finalization without cancelling or replaying the consumed ticket", async () => {
+    let issued = 0;
+    const nextId = "adc78890-c55d-467b-a10d-fb1a9ac07f13";
+    vi.mocked(fetch).mockImplementation(async (path, init) => {
+      expect(init?.method).toBe("POST");
+      if (String(path).endsWith("/finalize")) {
+        const { ticketId } = JSON.parse(String(init?.body));
+        return ticketId === ticket.ticketId
+          ? Response.json(
+              {
+                error:
+                  "Commercial MP4 container is invalid: missing MP4 signature",
+              },
+              { status: 422 },
+            )
+          : Response.json({ id: nextId, metadata: { width: 1920 } });
+      }
+      issued++;
+      return Response.json({
+        ...ticket,
+        ticketId: issued === 1 ? ticket.ticketId : nextId,
+        uploadUrl: ticket.uploadUrl + "&attempt=" + issued,
+      });
+    });
+    const file = new File(["video"], "ad.mp4", { type: "video/mp4" });
+    await expect(
+      uploadCommercial(file, null, 25000000, vi.fn(), vi.fn()),
+    ).rejects.toThrow("missing MP4 signature");
+    expect(
+      await uploadCommercial(file, null, 25000000, vi.fn(), vi.fn()),
+    ).toMatchObject({ id: nextId });
+    expect(issued).toBe(2);
+    expect(requests[0].url).not.toBe(requests[1].url);
+    const finalize = vi
+      .mocked(fetch)
+      .mock.calls.filter(([path]) => String(path).endsWith("/finalize"));
+    expect(finalize.map(([, init]) => JSON.parse(String(init?.body)))).toEqual([
+      { ticketId: ticket.ticketId },
+      { ticketId: nextId },
+    ]);
+    expect(vi.mocked(fetch).mock.calls).toHaveLength(4);
   });
   it("allows only the configured storage origin through browser CSP", () => {
     vi.stubEnv("SUPABASE_URL", "https://project.supabase.co/path");

@@ -8,6 +8,7 @@ All paths are relative to `/home/jp05831/airtime`. AIRTIME is the sole active pr
 - `app/api/creator/`: authenticated creator endpoints; `app/api/admin/operations/`: MFA-protected operator endpoints.
 - `app/dashboard/[[...section]]/page.tsx`: private creator workspace routing.
 - `components/creator-wallet.tsx`, `creator-app.tsx`, `campaign-builder.tsx`, `campaign-payment.tsx`, `operations-console.tsx`.
+- `supabase/migrations/007_upload_original_extension.sql`: immutable-name-derived upload extension audit metadata.
 - `supabase/migrations/006_private_upload_tickets.sql`: direct private upload ticket migration.
 - `supabase/migrations/002_creator_platform.sql`: forward-only multi-tenant migration.
 - `tests/platform.test.ts`, technical MP4 fixture, local layout database and expanded browser verification.

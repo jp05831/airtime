@@ -18,7 +18,7 @@ import type { CreatorIdentity } from "./model";
 
 export const uploadDeclaration = z
   .object({
-    name: z.string().min(1).max(120),
+    name: z.string().min(1).max(255),
     mime: z.literal("video/mp4"),
     size: z.number().int().safe().min(12),
     thumbnail: z
@@ -182,6 +182,7 @@ export async function createUploadTicket(
       ticketId: id,
       expiresAt: expires.toISOString(),
       maxBytes: maximum,
+      mime: ticket.declared_mime,
       uploadUrl: signedUrl(
         video.data.signedUrl,
         bucketName,
@@ -200,6 +201,17 @@ export async function createUploadTicket(
       "Private upload storage is temporarily unavailable. Try uploading again.",
     );
   }
+}
+
+// Storage MIME is metadata, not proof of media. Generic video metadata is
+// allowed only because complete bytes, MP4 structure and FFprobe are checked
+// before publication. Thumbnails retain their exact declared-type checks.
+function matchesStoredMime(value: string | null | undefined, declared: string) {
+  const actual = value?.split(";")[0].trim().toLowerCase();
+  return (
+    actual === declared ||
+    (declared === "video/mp4" && actual === "application/octet-stream")
+  );
 }
 
 async function downloadToFile(
@@ -229,7 +241,7 @@ async function downloadToFile(
       422,
       "Uploaded file size does not match the upload ticket. Upload it again.",
     );
-  if (info.data.contentType?.split(";")[0].trim().toLowerCase() !== mime)
+  if (!matchesStoredMime(info.data.contentType, mime))
     throw new HttpError(
       422,
       "Uploaded file type does not match the upload ticket.",
@@ -274,10 +286,7 @@ async function downloadToFile(
       "Stored file size is invalid. Upload the file again.",
     );
   }
-  if (
-    response.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !==
-    mime
-  ) {
+  if (!matchesStoredMime(response.headers.get("content-type"), mime)) {
     await response.body.cancel();
     throw new HttpError(
       422,
@@ -388,7 +397,14 @@ export async function finalizeUpload(
         thumb,
         signal,
       );
-      validateUpload(await readFile(thumb), ticket.thumbnail_mime!);
+      try {
+        validateUpload(await readFile(thumb), ticket.thumbnail_mime!);
+      } catch {
+        throw new HttpError(
+          422,
+          "Thumbnail is not a valid PNG/JPEG. Choose a new thumbnail and upload again.",
+        );
+      }
     }
     // Signed upload tokens can only write pending paths. Validated paths are
     // immutable to that token, even if an original upload is replayed later.

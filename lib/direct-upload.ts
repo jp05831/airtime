@@ -4,18 +4,20 @@ type Ticket = {
   uploadUrl: string;
   thumbnailUrl: string | null;
   expiresAt: string;
+  mime: "video/mp4";
 };
 export function putSignedFile(
   url: string,
   file: File,
   progress: (bytes: number) => void,
+  contentType = file.type,
 ) {
   return new Promise<void>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("PUT", url);
     xhr.withCredentials = false;
     xhr.timeout = 120000;
-    xhr.setRequestHeader("Content-Type", file.type);
+    xhr.setRequestHeader("Content-Type", contentType);
     xhr.setRequestHeader("x-upsert", "false");
     xhr.upload.onprogress = (event) =>
       progress(Math.min(event.loaded, file.size));
@@ -75,7 +77,17 @@ export async function uploadCommercial(
   progress: (percent: number) => void,
   stage: (message: string) => void,
 ) {
-  if (file.type !== "video/mp4") throw Error("Choose an MP4 commercial.");
+  const browserMime = file.type.split(";")[0].trim().toLowerCase();
+  if (
+    browserMime !== "video/mp4" &&
+    !(
+      (!browserMime || browserMime === "application/octet-stream") &&
+      /\.mp4$/i.test(file.name)
+    )
+  )
+    throw Error("Choose an MP4 commercial.");
+  // This declaration is only a candidate type. Server byte/container and
+  // FFprobe validation remain authoritative, including for renamed files.
   if (file.size > maximum)
     throw Error(
       `Commercial exceeds the ${Math.floor(maximum / 1000000)} MB upload limit.`,
@@ -88,8 +100,8 @@ export async function uploadCommercial(
     throw Error("Thumbnail must be a PNG/JPEG below 2 MB.");
   stage("Preparing secure upload…");
   const ticket: Ticket = await jsonRequest("/api/creator/upload", {
-    name: file.name.slice(0, 120),
-    mime: file.type,
+    name: file.name,
+    mime: "video/mp4",
     size: file.size,
     ...(thumbnail
       ? { thumbnail: { mime: thumbnail.type, size: thumbnail.size } }
@@ -101,12 +113,20 @@ export async function uploadCommercial(
         "Upload ticket expired. Upload the file again for a new ticket.",
       );
   };
+  let finalizationStarted = false;
   try {
+    if (ticket.mime !== "video/mp4")
+      throw Error(
+        "Secure upload type is invalid. Request a new upload ticket.",
+      );
     checkExpiry();
     const total = file.size + (thumbnail?.size || 0);
     stage("Uploading commercial…");
-    await putSignedFile(ticket.uploadUrl, file, (bytes) =>
-      progress(Math.round((bytes / total) * 100)),
+    await putSignedFile(
+      ticket.uploadUrl,
+      file,
+      (bytes) => progress(Math.round((bytes / total) * 100)),
+      ticket.mime,
     );
     if (thumbnail) {
       checkExpiry();
@@ -121,17 +141,22 @@ export async function uploadCommercial(
     }
     checkExpiry();
     stage("Checking video format…");
+    finalizationStarted = true;
     return await jsonRequest("/api/creator/upload/finalize", {
       ticketId: ticket.ticketId,
     });
   } catch (error) {
     // Cancellation never targets an arbitrary object path, and cannot cancel a
     // validating/validated ticket if a finalize response was lost.
-    await jsonRequest(
-      "/api/creator/upload",
-      { ticketId: ticket.ticketId },
-      "DELETE",
-    ).catch(() => {});
+    // A finalize attempt consumes the ticket and performs its own cleanup.
+    // Do not send a second mutation that would report a misleading 409.
+    // The next uploadCommercial call always requests a fresh ticket.
+    if (!finalizationStarted)
+      await jsonRequest(
+        "/api/creator/upload",
+        { ticketId: ticket.ticketId },
+        "DELETE",
+      ).catch(() => {});
     throw error;
   }
 }
