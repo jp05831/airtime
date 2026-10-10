@@ -14,6 +14,7 @@ import { platformConfig, platformAvailable } from "./config";
 import { addCoin, coinView } from "./coins";
 import { fixedInvoiceAmounts } from "@/lib/vibe/money";
 import { assertCreativeApproved } from "@/lib/vibe/review";
+import { maxCreativeBytes } from "@/lib/server/uploads";
 export async function logOperation(
   actor: string,
   action: string,
@@ -367,6 +368,7 @@ export async function creatorState(
       totalCents: config.totalCents.toString(),
       paymentConfigured: !!config.paymentWallet,
       uploadsConfigured: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+      maxCreativeBytes: maxCreativeBytes(),
       maintenance: !!settings[0]?.config.maintenance,
     },
     notice: !config.paymentWallet

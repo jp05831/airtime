@@ -26,7 +26,7 @@ for (const args of [
 }
 const trace = JSON.parse(
   await readFile(
-    ".next/server/app/api/creator/upload/route.js.nft.json",
+    ".next/server/app/api/creator/upload/finalize/route.js.nft.json",
     "utf8",
   ),
 );

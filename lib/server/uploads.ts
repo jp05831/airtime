@@ -1,6 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 import { required } from "./config";
-export function storage() {
+import { HttpError } from "./http";
+export const storageBucket = () =>
+  process.env.SUPABASE_STORAGE_BUCKET || "airtime-proof";
+function storageClient(signal?: AbortSignal) {
   return createClient(
     required("SUPABASE_URL"),
     required("SUPABASE_SERVICE_ROLE_KEY"),
@@ -8,12 +11,43 @@ export function storage() {
       auth: { persistSession: false, autoRefreshToken: false },
       global: {
         fetch: async (input, init) =>
-          fetch(input, { ...init, signal: AbortSignal.timeout(20000) }),
+          fetch(input, {
+            ...init,
+            signal: signal
+              ? AbortSignal.any([signal, AbortSignal.timeout(8000)])
+              : AbortSignal.timeout(20000),
+          }),
       },
     },
-  ).storage.from(process.env.SUPABASE_STORAGE_BUCKET || "airtime-proof");
+  ).storage;
 }
-export function maxCreativeBytes(){const v=process.env.MAX_CREATIVE_BYTES||"25000000";if(!/^\d+$/.test(v)||Number(v)<1000000||Number(v)>250000000)throw Error("Invalid maximum creative size");return Number(v);}
+export function storage() {
+  return storageClient().from(storageBucket());
+}
+export async function privateUploadStorage(
+  bucket = storageBucket(),
+  signal?: AbortSignal,
+) {
+  if (bucket !== storageBucket())
+    throw new HttpError(
+      503,
+      "Upload storage configuration changed. Request a new upload ticket.",
+    );
+  const client = storageClient(signal);
+  const { data, error } = await client.getBucket(bucket);
+  if (error || !data || data.public !== false)
+    throw new HttpError(
+      503,
+      "Private upload storage is temporarily unavailable.",
+    );
+  return client.from(bucket);
+}
+export function maxCreativeBytes() {
+  const v = process.env.MAX_CREATIVE_BYTES || "25000000";
+  if (!/^\d+$/.test(v) || Number(v) < 1000000 || Number(v) > 250000000)
+    throw Error("Invalid maximum creative size");
+  return Number(v);
+}
 export function validateUpload(bytes: Buffer, type: string) {
   const maximum = type === "video/mp4" ? maxCreativeBytes() : 10000000;
   if (bytes.length > maximum || bytes.length < 12)

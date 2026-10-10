@@ -12,6 +12,8 @@ vi.mock("@ffprobe-installer/ffprobe", () => {
 it("allows route imports and an explicit local executable without loading the installer", async () => {
   const { POST } = await import("@/app/api/creator/upload/route");
   expect(typeof POST).toBe("function");
+  const finalize = await import("@/app/api/creator/upload/finalize/route");
+  expect(typeof finalize.POST).toBe("function");
   expect(await resolveFfprobePath("/opt/local/ffprobe")).toBe(
     "/opt/local/ffprobe",
   );

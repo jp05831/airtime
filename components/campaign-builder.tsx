@@ -11,6 +11,7 @@ import type {
 import { dollars } from "@/lib/accounting";
 import { api } from "./creator-wallet";
 import CampaignPayment from "./campaign-payment";
+import { uploadCommercial } from "@/lib/direct-upload";
 const steps = ["Coin", "Commercial", "Audience", "Approval", "Payment"];
 export function centsInput(value: string) {
   if (!/^\d+(\.\d{0,2})?$/.test(value))
@@ -89,6 +90,8 @@ export default function CampaignBuilder({
         ?.original_name || "",
     ),
     [busy, setBusy] = useState(false),
+    [uploadProgress, setUploadProgress] = useState<number | null>(null),
+    [uploadStatus, setUploadStatus] = useState(""),
     [error, setError] = useState(""),
     [id, setId] = useState(existing?.id || ""),
     [rights, setRights] = useState(!!existing),
@@ -108,16 +111,16 @@ export default function CampaignBuilder({
     if (!file) return;
     setBusy(true);
     setError("");
+    setUploadProgress(0);
+    patch({ creativeId: "" });
     try {
-      const form = new FormData();
-      form.set("file", file);
-      if (thumbnail) form.set("thumbnail", thumbnail);
-      const r = await fetch("/api/creator/upload", {
-          method: "POST",
-          body: form,
-        }),
-        result = await r.json();
-      if (!r.ok) throw Error(result.error);
+      const result = await uploadCommercial(
+        file,
+        thumbnail,
+        state.config.maxCreativeBytes,
+        setUploadProgress,
+        setUploadStatus,
+      );
       patch({ creativeId: result.id });
       setUploadName(result.name);
       onSaved();
@@ -125,6 +128,8 @@ export default function CampaignBuilder({
       setError((e as Error).message);
     } finally {
       setBusy(false);
+      setUploadProgress(null);
+      setUploadStatus("");
     }
   }
   async function save() {
@@ -327,7 +332,8 @@ export default function CampaignBuilder({
                 <h3>Upload your finished commercial</h3>
                 <p>
                   5–90 seconds · H.264 MP4 · 16:9 · 720p minimum · 2,500 kbps ·
-                  constant frame rate · audio required · up to 25 MB
+                  constant frame rate · audio required · up to{" "}
+                  {Math.floor(state.config.maxCreativeBytes / 1000000)} MB
                 </p>
                 <label>
                   Commercial
@@ -350,8 +356,20 @@ export default function CampaignBuilder({
                   disabled={busy || !file || !state.config.uploadsConfigured}
                   onClick={upload}
                 >
-                  {busy ? "Validating commercial…" : "Upload and validate"}
+                  {uploadStatus || "Upload and validate"}
                 </button>
+                {uploadProgress !== null && (
+                  <div aria-live="polite">
+                    <p>
+                      {uploadStatus} {uploadProgress}%
+                    </p>
+                    <progress
+                      aria-label="Commercial upload progress"
+                      max={100}
+                      value={uploadProgress}
+                    />
+                  </div>
+                )}
                 {!state.config.uploadsConfigured && (
                   <p className="notice">
                     Private commercial storage is awaiting operator

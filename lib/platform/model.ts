@@ -317,6 +317,7 @@ export type CreatorState = {
     feeBps: number;
     paymentConfigured: boolean;
     uploadsConfigured: boolean;
+    maxCreativeBytes: number;
     maintenance: boolean;
   };
   notice: string | null;

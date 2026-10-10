@@ -8,6 +8,7 @@ All paths are relative to `/home/jp05831/airtime`. AIRTIME is the sole active pr
 - `app/api/creator/`: authenticated creator endpoints; `app/api/admin/operations/`: MFA-protected operator endpoints.
 - `app/dashboard/[[...section]]/page.tsx`: private creator workspace routing.
 - `components/creator-wallet.tsx`, `creator-app.tsx`, `campaign-builder.tsx`, `campaign-payment.tsx`, `operations-console.tsx`.
+- `supabase/migrations/006_private_upload_tickets.sql`: direct private upload ticket migration.
 - `supabase/migrations/002_creator_platform.sql`: forward-only multi-tenant migration.
 - `tests/platform.test.ts`, technical MP4 fixture, local layout database and expanded browser verification.
 - Updated creator-platform documentation and retained legacy records/code in `docs/archive/` and `archive/treasury-routes/`.
@@ -47,7 +48,8 @@ Homepage/styles/metadata/social image, navigation/footer/root wallet provider; c
 - `app/api/creator/quote/route.ts`
 - `app/api/creator/receipt/route.ts`
 - `app/api/creator/state/route.ts`
-- `app/api/creator/upload/route.ts`
+- `app/api/creator/upload/route.ts` — authenticated upload tickets/cancellation
+- `app/api/creator/upload/finalize/route.ts` — bounded server validation
 - `app/api/creator/verify/route.ts`
 - `app/api/health/route.ts`
 - `app/api/media/[id]/route.ts`
@@ -126,6 +128,8 @@ Homepage/styles/metadata/social image, navigation/footer/root wallet provider; c
 - `lib/server/protocol.ts`
 - `lib/server/queries.ts`
 - `lib/server/uploads.ts`
+- `lib/platform/uploads.ts` — ticket lifecycle, streaming and cleanup
+- `lib/direct-upload.ts` — browser signed upload transport
 - `lib/types.ts`
 - `lib/validation.ts`
 - `middleware.ts`

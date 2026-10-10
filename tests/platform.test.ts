@@ -50,6 +50,12 @@ const store = vi.hoisted(() => ({
   db: null as unknown as PGlite,
   connection: null as any,
   objects: new Map<string, Uint8Array>(),
+  objectTypes: new Map<string, string>(),
+  uploadTokens: new Map<string, string>(),
+  infoOverrides: new Map<string, { size: number; contentType: string }>(),
+  downloadOverrides: new Map<string, () => Response>(),
+  removeFails: false,
+  copyFails: false,
 }));
 vi.mock("@/lib/server/db", () => {
   const query = async (sql: string, args?: unknown[]) => {
@@ -91,6 +97,61 @@ vi.mock("@/lib/server/uploads", async (original) => {
   const real = (await original()) as any;
   return {
     ...real,
+    privateUploadStorage: vi.fn(async () => ({
+      createSignedUploadUrl: async (
+        path: string,
+        options: { upsert: boolean },
+      ) => {
+        expect(options.upsert).toBe(false);
+        const token = randomUUID();
+        store.uploadTokens.set(token, path);
+        return {
+          data: {
+            path,
+            token,
+            signedUrl: `https://test.supabase.co/storage/v1/object/upload/sign/airtime-proof/${path}?token=${token}`,
+          },
+          error: null,
+        };
+      },
+      info: async (path: string) => {
+        const bytes = store.objects.get(path);
+        return bytes
+          ? {
+              data: store.infoOverrides.get(path) || {
+                size: bytes.byteLength,
+                contentType: store.objectTypes.get(path),
+              },
+              error: null,
+            }
+          : { data: null, error: Error("Not found") };
+      },
+      createSignedUrl: async (path: string) => ({
+        data: {
+          signedUrl: `https://test.supabase.co/storage/v1/object/sign/airtime-proof/${path}?token=private-read`,
+        },
+        error: null,
+      }),
+      copy: async (source: string, destination: string) => {
+        if (
+          store.copyFails ||
+          !store.objects.has(source) ||
+          store.objects.has(destination)
+        )
+          return { error: Error("Copy failed") };
+        store.objects.set(destination, store.objects.get(source)!.slice());
+        store.objectTypes.set(destination, store.objectTypes.get(source)!);
+        return { error: null };
+      },
+      remove: async (paths: string[]) => {
+        if (store.removeFails) return { error: Error("Remove failed") };
+        for (const path of paths) {
+          store.objects.delete(path);
+          store.objectTypes.delete(path);
+        }
+        return { error: null };
+      },
+    })),
     storage: vi.fn(() => ({
       download: async () => ({
         data: new Blob(["mock private commercial"]),
@@ -515,9 +576,42 @@ function request(
     headers: {
       origin,
       ...(token ? { cookie: "airtime_creator=" + token } : {}),
+      ...(payload !== undefined ? { "Content-Type": "application/json" } : {}),
     },
     ...(payload === undefined ? {} : { body: JSON.stringify(payload) }),
   });
+}
+type TestTicket = { ticketId: string; uploadUrl: string; expiresAt: string };
+async function issueTicket(
+  token: string,
+  bytes: Buffer,
+  extra: Record<string, unknown> = {},
+): Promise<TestTicket> {
+  const route = await import("@/app/api/creator/upload/route");
+  const response = await route.POST(
+    request("/api/creator/upload", token, {
+      name: "../../commercial.mp4",
+      mime: "video/mp4",
+      size: bytes.length,
+      ...extra,
+    }),
+  );
+  expect(response.status).toBe(200);
+  return response.json();
+}
+function directPut(url: string, bytes: Buffer, mime = "video/mp4") {
+  const path = store.uploadTokens.get(new URL(url).searchParams.get("token")!);
+  if (!path || store.objects.has(path))
+    throw Error("Invalid token or overwrite");
+  store.objects.set(path, Buffer.from(bytes));
+  store.objectTypes.set(path, mime);
+  return path;
+}
+async function finalizeTicket(token: string, ticketId: string) {
+  const route = await import("@/app/api/creator/upload/finalize/route");
+  return route.POST(
+    request("/api/creator/upload/finalize", token, { ticketId }),
+  );
 }
 beforeAll(async () => {
   store.db = new PGlite();
@@ -543,12 +637,23 @@ beforeAll(async () => {
       "utf8",
     ),
   );
+  await store.db.exec(
+    await readFile(
+      "supabase/migrations/006_private_upload_tickets.sql",
+      "utf8",
+    ),
+  );
   await store.db.exec("COMMIT; SET search_path=airtime,public");
 });
 afterAll(async () => store.db.close());
 beforeEach(async () => {
   vi.restoreAllMocks();
   store.objects.clear();
+  store.objectTypes.clear();
+  store.uploadTokens.clear();
+  store.infoOverrides.clear();
+  store.downloadOverrides.clear();
+  store.removeFails = store.copyFails = false;
   await store.db.exec(
     "TRUNCATE platform_users,wallet_auth_challenges,platform_coins,operations_audit,sol_price_snapshots,webhook_events,rate_limits,admin_users CASCADE",
   );
@@ -593,6 +698,25 @@ beforeEach(async () => {
     "INSERT INTO sol_price_snapshots(price_usd_micros,source) VALUES(100000000,'Test price')",
   );
   vi.spyOn(globalThis, "fetch").mockImplementation(async (_input, init) => {
+    const url = String(_input);
+    if (url.includes("/storage/v1/object/sign/airtime-proof/")) {
+      const path = new URL(url).pathname.split(
+        "/storage/v1/object/sign/airtime-proof/",
+      )[1];
+      const override = store.downloadOverrides.get(path);
+      if (override) return override();
+      const bytes = store.objects.get(path);
+      return new Response(bytes ? Buffer.from(bytes) : null, {
+        status: bytes ? 200 : 404,
+        headers: bytes
+          ? {
+              "Content-Type":
+                store.objectTypes.get(path) || "application/octet-stream",
+              "Content-Length": String(bytes.byteLength),
+            }
+          : {},
+      });
+    }
     const params = init?.body ? JSON.parse(String(init.body)) : {};
     return new Response(
       JSON.stringify(
@@ -623,7 +747,7 @@ describe("Forward-only platform migration", () => {
         "SELECT relname,relrowsecurity FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='airtime' AND relkind='r'",
       )
     ).rows;
-    expect(tables).toHaveLength(46);
+    expect(tables).toHaveLength(47);
     expect(tables.every((t) => t.relrowsecurity)).toBe(true);
   });
 });
@@ -1486,24 +1610,15 @@ describe("Creative, targeting and payment worker", () => {
           await chmod(path, 0o700);
         }
         vi.stubEnv("FFPROBE_PATH", path);
-        const form = new FormData();
-        form.set(
-          "file",
-          new File(
-            [await readFile("tests/fixtures/technical-test-15s.mp4")],
-            "commercial.mp4",
-            { type: "video/mp4" },
-          ),
-        );
-        const { POST } = await import("@/app/api/creator/upload/route");
+        const bytes = await readFile("tests/fixtures/technical-test-15s.mp4");
+        const token = await session(a);
+        const ticket = await issueTicket(token, bytes);
+        directPut(ticket.uploadUrl, bytes);
+        const { POST } =
+          await import("@/app/api/creator/upload/finalize/route");
         const response = await POST(
-          new NextRequest("http://localhost:3200/api/creator/upload", {
-            method: "POST",
-            headers: {
-              origin: "http://localhost:3200",
-              cookie: "airtime_creator=" + (await session(a)),
-            },
-            body: form,
+          request("/api/creator/upload/finalize", token, {
+            ticketId: ticket.ticketId,
           }),
         );
         expect(response.status).toBe(503);
@@ -1616,6 +1731,333 @@ describe("Creative, targeting and payment worker", () => {
   });
 });
 
+describe("Private direct upload tickets", () => {
+  async function setup(extra: Record<string, unknown> = {}) {
+    const token = await session(a),
+      bytes = await readFile("tests/fixtures/technical-test-15s.mp4");
+    const ticket = await issueTicket(token, bytes, extra);
+    const path = directPut(ticket.uploadUrl, bytes);
+    return { token, bytes, ticket, path };
+  }
+  it("issues authenticated random creator paths and rejects declarations, multipart and arbitrary finalize paths", async () => {
+    const route = await import("@/app/api/creator/upload/route");
+    const token = await session(a);
+    expect(
+      (
+        await route.POST(
+          request("/api/creator/upload", undefined, {
+            name: "ad.mp4",
+            mime: "video/mp4",
+            size: 12,
+          }),
+        )
+      ).status,
+    ).toBe(401);
+    for (const input of [
+      { name: "ad.mp4", mime: "text/html", size: 12 },
+      { name: "ad.mp4", mime: "video/mp4", size: 25000001 },
+      {
+        name: "ad.mp4",
+        mime: "video/mp4",
+        size: 12,
+        objectPath: "../another-wallet/file",
+      },
+    ])
+      expect(
+        (await route.POST(request("/api/creator/upload", token, input))).status,
+      ).toBe(input.size === 25000001 ? 413 : 400);
+    const form = new FormData();
+    form.set("file", new File(["bytes"], "ad.mp4"));
+    expect(
+      (
+        await route.POST(
+          new NextRequest("http://localhost:3200/api/creator/upload", {
+            method: "POST",
+            headers: {
+              origin: "http://localhost:3200",
+              cookie: "airtime_creator=" + token,
+            },
+            body: form,
+          }),
+        )
+      ).status,
+    ).toBe(415);
+    const ticket = await issueTicket(token, Buffer.alloc(12));
+    const path = store.uploadTokens.get(
+      new URL(ticket.uploadUrl).searchParams.get("token")!,
+    );
+    expect(path).toBe(
+      `creators/${a.userId}/pending/${ticket.ticketId}/commercial.mp4`,
+    );
+    expect(ticket).not.toHaveProperty("serviceRoleKey");
+    const finalize = await import("@/app/api/creator/upload/finalize/route");
+    expect(
+      (
+        await finalize.POST(
+          request("/api/creator/upload/finalize", token, {
+            ticketId: ticket.ticketId,
+            objectPath: path,
+          }),
+        )
+      ).status,
+    ).toBe(400);
+  });
+  it("isolates creators and wallets, rejects overwrite, accepts valid video once and keeps its final object immutable", async () => {
+    const { token, bytes, ticket, path } = await setup();
+    expect(() => directPut(ticket.uploadUrl, bytes)).toThrow("overwrite");
+    expect(
+      (await finalizeTicket(await session(b), ticket.ticketId)).status,
+    ).toBe(404);
+    const { finalizeUpload } = await import("@/lib/platform/uploads");
+    await expect(
+      finalizeUpload({ ...a, wallet: b.wallet }, ticket.ticketId),
+    ).rejects.toMatchObject({ status: 404 });
+    const response = await finalizeTicket(token, ticket.ticketId);
+    expect(response.status).toBe(200);
+    const creative = await response.json();
+    expect(creative.metadata).toMatchObject({
+      width: 1920,
+      height: 1080,
+      audio: true,
+      codec: "h264",
+    });
+    const saved = (
+      await q("SELECT * FROM campaign_creatives WHERE id=$1", [creative.id])
+    ).rows[0];
+    expect(saved.object_path).toBe(
+      `creators/${a.userId}/${ticket.ticketId}/commercial.mp4`,
+    );
+    expect(
+      Buffer.from(store.objects.get(saved.object_path)!).equals(bytes),
+    ).toBe(true);
+    expect(saved.validation_status).toBe("TECHNICALLY_VALID");
+    expect((await finalizeTicket(token, ticket.ticketId)).status).toBe(409);
+    await q(
+      "UPDATE creative_upload_tickets SET next_cleanup_at=now() WHERE id=$1",
+      [ticket.ticketId],
+    );
+    const { cleanupUploadTickets } = await import("@/lib/platform/uploads");
+    await cleanupUploadTickets();
+    expect(store.objects.has(path)).toBe(false);
+    directPut(ticket.uploadUrl, Buffer.alloc(bytes.length)); // token can recreate only quarantine
+    expect((await finalizeTicket(token, ticket.ticketId)).status).toBe(409);
+    expect(
+      Buffer.from(store.objects.get(saved.object_path)!).equals(bytes),
+    ).toBe(true);
+    expect(
+      (
+        await q("SELECT cleaned_at FROM creative_upload_tickets WHERE id=$1", [
+          ticket.ticketId,
+        ])
+      ).rows[0].cleaned_at,
+    ).toBeNull();
+  });
+  it("claims finalization atomically and rejects concurrent/replayed requests", async () => {
+    const { token, ticket } = await setup();
+    const responses = await Promise.all([
+      finalizeTicket(token, ticket.ticketId),
+      finalizeTicket(token, ticket.ticketId),
+    ]);
+    expect(responses.map((r) => r.status).sort()).toEqual([200, 409]);
+    expect((await q("SELECT * FROM campaign_creatives")).rows).toHaveLength(1);
+  });
+  it("rejects an expired ticket and cleans abandoned and late-uploaded objects", async () => {
+    const token = await session(a),
+      bytes = Buffer.alloc(12);
+    const now = Date.now();
+    const clock = vi.spyOn(Date, "now").mockReturnValue(now - 16 * 60000);
+    const ticket = await issueTicket(token, bytes);
+    clock.mockRestore();
+    const path = directPut(ticket.uploadUrl, bytes);
+    expect((await finalizeTicket(token, ticket.ticketId)).status).toBe(410);
+    const { cleanupUploadTickets } = await import("@/lib/platform/uploads");
+    expect(await cleanupUploadTickets()).toEqual({ cleaned: 1 });
+    expect(store.objects.has(path)).toBe(false);
+    expect(
+      (
+        await q(
+          "SELECT status,cleaned_at FROM creative_upload_tickets WHERE id=$1",
+          [ticket.ticketId],
+        )
+      ).rows[0],
+    ).toMatchObject({ status: "EXPIRED", cleaned_at: null });
+    directPut(ticket.uploadUrl, bytes);
+    await q(
+      "UPDATE creative_upload_tickets SET next_cleanup_at=now() WHERE id=$1",
+      [ticket.ticketId],
+    );
+    await cleanupUploadTickets();
+    expect(store.objects.has(path)).toBe(false);
+    // A ticket older than the provider token plus grace reaches terminal cleanup.
+    const old = vi.spyOn(Date, "now").mockReturnValue(now - 131 * 60000);
+    const aged = await issueTicket(token, bytes);
+    old.mockRestore();
+    const agedPath = directPut(aged.uploadUrl, bytes);
+    await cleanupUploadTickets();
+    expect(store.objects.has(agedPath)).toBe(false);
+    expect(
+      (
+        await q("SELECT cleaned_at FROM creative_upload_tickets WHERE id=$1", [
+          aged.ticketId,
+        ])
+      ).rows[0].cleaned_at,
+    ).not.toBeNull();
+  });
+  it.each([
+    "oversize",
+    "size mismatch",
+    "type mismatch",
+    "stream excess",
+    "interrupted",
+    "invalid video",
+    "invalid container",
+  ])(
+    "rejects %s, deletes quarantined media and never creates a creative",
+    async (failure) => {
+      const { token, bytes, ticket, path } = await setup();
+      if (failure === "oversize")
+        store.infoOverrides.set(path, {
+          size: 25000001,
+          contentType: "video/mp4",
+        });
+      if (failure === "size mismatch")
+        store.infoOverrides.set(path, {
+          size: bytes.length + 1,
+          contentType: "video/mp4",
+        });
+      if (failure === "type mismatch") store.objectTypes.set(path, "text/html");
+      if (failure === "stream excess")
+        store.downloadOverrides.set(
+          path,
+          () =>
+            new Response(Buffer.alloc(bytes.length + 1), {
+              headers: { "Content-Type": "video/mp4" },
+            }),
+        );
+      if (failure === "interrupted")
+        store.downloadOverrides.set(
+          path,
+          () =>
+            new Response(bytes.subarray(0, 20), {
+              headers: { "Content-Type": "video/mp4" },
+            }),
+        );
+      if (failure === "invalid video")
+        store.objects.set(path, Buffer.alloc(bytes.length));
+      if (failure === "invalid container") {
+        const junk = Buffer.alloc(bytes.length);
+        junk.write("ftyp", 4);
+        store.objects.set(path, junk);
+      }
+      const response = await finalizeTicket(token, ticket.ticketId);
+      expect(response.status).toBe(
+        ["oversize", "stream excess"].includes(failure) ? 413 : 422,
+      );
+      expect((await response.json()).error).toBeTruthy();
+      expect(store.objects.has(path)).toBe(false);
+      expect((await q("SELECT * FROM campaign_creatives")).rows).toHaveLength(
+        0,
+      );
+      expect((await finalizeTicket(token, ticket.ticketId)).status).toBe(409);
+    },
+  );
+  it("rejects incomplete upload and retries deletion failures through cleanup", async () => {
+    const token = await session(a),
+      ticket = await issueTicket(token, Buffer.alloc(12));
+    expect((await finalizeTicket(token, ticket.ticketId)).status).toBe(409);
+    const path = directPut(ticket.uploadUrl, Buffer.alloc(12));
+    store.removeFails = true;
+    const { cleanupUploadTickets } = await import("@/lib/platform/uploads");
+    expect(await cleanupUploadTickets()).toEqual({ cleaned: 0 });
+    expect(store.objects.has(path)).toBe(true);
+    store.removeFails = false;
+    await q(
+      "UPDATE creative_upload_tickets SET next_cleanup_at=now() WHERE id=$1",
+      [ticket.ticketId],
+    );
+    await cleanupUploadTickets();
+    expect(store.objects.has(path)).toBe(false);
+  });
+  it("validates thumbnails and cleans partial publication failures", async () => {
+    const { token, ticket } = await setup({
+      thumbnail: { mime: "image/png", size: 12 },
+    });
+    const row = (
+      await q("SELECT * FROM creative_upload_tickets WHERE id=$1", [
+        ticket.ticketId,
+      ])
+    ).rows[0];
+    store.objects.set(row.thumbnail_path, Buffer.alloc(12));
+    store.objectTypes.set(row.thumbnail_path, "image/png");
+    expect((await finalizeTicket(token, ticket.ticketId)).status).toBe(422);
+    expect(store.objects.size).toBe(0);
+    const next = await setup();
+    store.copyFails = true;
+    expect(
+      (await finalizeTicket(next.token, next.ticket.ticketId)).status,
+    ).toBe(503);
+    expect(store.objects.size).toBe(0);
+    expect((await q("SELECT * FROM campaign_creatives")).rows).toHaveLength(0);
+  });
+  it("accepts a directly uploaded thumbnail and rejects cross-wallet cancellation", async () => {
+    const { token, ticket } = await setup({
+      thumbnail: { mime: "image/png", size: 12 },
+    });
+    const row = (
+      await q("SELECT * FROM creative_upload_tickets WHERE id=$1", [
+        ticket.ticketId,
+      ])
+    ).rows[0];
+    const png = Buffer.alloc(12);
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]).copy(png);
+    store.objects.set(row.thumbnail_path, png);
+    store.objectTypes.set(row.thumbnail_path, "image/png");
+    const { cancelUpload } = await import("@/lib/platform/uploads");
+    await expect(cancelUpload(b, ticket.ticketId)).rejects.toMatchObject({
+      status: 409,
+    });
+    expect((await finalizeTicket(token, ticket.ticketId)).status).toBe(200);
+    expect(
+      Buffer.from(store.objects.get(row.final_thumbnail_path)!).equals(png),
+    ).toBe(true);
+    await expect(cancelUpload(a, ticket.ticketId)).rejects.toMatchObject({
+      status: 409,
+    });
+    const finalize = await import("@/app/api/creator/upload/finalize/route");
+    expect(
+      (
+        await finalize.POST(
+          request("/api/creator/upload/finalize", undefined, {
+            ticketId: ticket.ticketId,
+          }),
+        )
+      ).status,
+    ).toBe(401);
+  });
+  it("cleans stale validation without claiming active validation and enforces immutable ticket identity", async () => {
+    const { ticket, path } = await setup();
+    await expect(
+      q(
+        "UPDATE creative_upload_tickets SET object_path='../injected' WHERE id=$1",
+        [ticket.ticketId],
+      ),
+    ).rejects.toThrow();
+    await q(
+      "UPDATE creative_upload_tickets SET status='VALIDATING',claimed_at=now(),next_cleanup_at=now() WHERE id=$1",
+      [ticket.ticketId],
+    );
+    const { cleanupUploadTickets } = await import("@/lib/platform/uploads");
+    expect(await cleanupUploadTickets()).toEqual({ cleaned: 0 });
+    expect(store.objects.has(path)).toBe(true);
+    await q(
+      "UPDATE creative_upload_tickets SET claimed_at=now()-interval '6 minutes' WHERE id=$1",
+      [ticket.ticketId],
+    );
+    expect(await cleanupUploadTickets()).toEqual({ cleaned: 1 });
+    expect(store.objects.has(path)).toBe(false);
+  });
+});
+
 describe("Complete wallet-to-reviewed-campaign journey (isolated RPC/storage)", () => {
   it("authenticates, verifies a coin, validates/upload creative, quotes, separately signs funding, verifies finality and submits", async () => {
     const challenge = await import("@/app/api/creator/challenge/route"),
@@ -1646,20 +2088,21 @@ describe("Complete wallet-to-reviewed-campaign journey (isolated RPC/storage)", 
     expect(
       (await coins.POST(request("/api/creator/coins", token, { mint }))).status,
     ).toBe(200);
-    const bytes = await readFile("tests/fixtures/technical-test-15s.mp4"),
-      form = new FormData();
-    form.set(
-      "file",
-      new File([bytes], "technical-test-15s.mp4", { type: "video/mp4" }),
+    const bytes = await readFile("tests/fixtures/technical-test-15s.mp4");
+    const ticketResponse = await uploadRoute.POST(
+      request("/api/creator/upload", token, {
+        name: "technical-test-15s.mp4",
+        mime: "video/mp4",
+        size: bytes.length,
+      }),
     );
-    const uploaded = await uploadRoute.POST(
-      new NextRequest("http://localhost:3200/api/creator/upload", {
-        method: "POST",
-        headers: {
-          origin: "http://localhost:3200",
-          cookie: "airtime_creator=" + token,
-        },
-        body: form,
+    expect(ticketResponse.status).toBe(200);
+    const ticket = await ticketResponse.json();
+    directPut(ticket.uploadUrl, bytes);
+    const finalize = await import("@/app/api/creator/upload/finalize/route");
+    const uploaded = await finalize.POST(
+      request("/api/creator/upload/finalize", token, {
+        ticketId: ticket.ticketId,
       }),
     );
     expect(uploaded.status).toBe(200);

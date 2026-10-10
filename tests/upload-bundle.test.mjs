@@ -8,7 +8,7 @@ import { promisify } from "node:util";
 import { test } from "node:test";
 
 const project = fileURLToPath(new URL("../", import.meta.url));
-const route = ".next/server/app/api/creator/upload/route.js";
+const route = ".next/server/app/api/creator/upload/finalize/route.js";
 const linux = "node_modules/@ffprobe-installer/linux-x64";
 const supported = process.platform === "linux" && process.arch === "x64";
 const run = promisify(execFile);

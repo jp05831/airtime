@@ -1,5 +1,6 @@
 import { runVibeSync } from "../lib/vibe/workflow";
 import { runPlatformSync } from "../lib/platform/worker";
+import { cleanupUploadTickets } from "../lib/platform/uploads";
 import { db } from "../lib/server/db";
 import { validateProduction } from "../lib/server/config";
 import { redact } from "../lib/server/http";
@@ -8,7 +9,11 @@ async function main() {
   console.log(
     JSON.stringify({
       event: "sync_completed",
-      result: { payments: await runPlatformSync(), vibe: await runVibeSync() },
+      result: {
+        payments: await runPlatformSync(),
+        vibe: await runVibeSync(),
+        uploads: await cleanupUploadTickets(),
+      },
     }),
   );
   await db().end();

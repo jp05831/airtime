@@ -1,10 +1,10 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { access, mkdtemp, writeFile, rm } from "node:fs/promises";
+import { access, mkdtemp, writeFile, rm, open, stat } from "node:fs/promises";
 import { constants } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { validateUpload } from "@/lib/server/uploads";
+import { validateUpload, maxCreativeBytes } from "@/lib/server/uploads";
 export type VideoMetadata = {
   duration: number;
   width: number;
@@ -120,48 +120,64 @@ export function validateVideoMetadata(raw: any): VideoMetadata {
 }
 export async function probeVideo(bytes: Buffer) {
   validateUpload(bytes, "video/mp4");
-  const ffprobePath = await availableFfprobePath();
   const directory = await mkdtemp(join(tmpdir(), "airtime-creative-"));
   try {
     const path = join(directory, "creative.mp4");
     await writeFile(path, bytes);
-    let result;
-    try {
-      result = await promisify(execFile)(
-        ffprobePath,
-        [
-          "-protocol_whitelist",
-          "file,pipe",
-          "-v",
-          "error",
-          "-show_streams",
-          "-show_frames",
-          "-show_entries",
-          "frame=media_type,best_effort_timestamp_time:stream:format",
-          "-show_format",
-          "-of",
-          "json",
-          path,
-        ],
-        { timeout: 30000, maxBuffer: 2000000 },
-      );
-    } catch (error) {
-      // Spawn errors have string errno codes; a running FFprobe's numeric exit
-      // code indicates invalid media and retains the existing validation error.
-      if (typeof (error as NodeJS.ErrnoException).code === "string")
-        throw new FfprobeUnavailableError();
-      throw Error(
-        "Unable to read a valid standalone MP4. Re-export and try again.",
-      );
-    }
-    let metadata;
-    try {
-      metadata = JSON.parse(result.stdout);
-    } catch {
-      throw Error("Commercial metadata could not be validated");
-    }
-    return validateVideoMetadata(metadata);
+    return await probeVideoFile(path);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+}
+// Only server-generated temporary paths reach this function. Uploaded videos
+// are streamed to disk, never buffered into a function request or a full Blob.
+export async function probeVideoFile(path: string, signal?: AbortSignal) {
+  const info = await stat(path);
+  if (!info.isFile() || info.size < 12 || info.size > maxCreativeBytes())
+    throw Error("File size invalid");
+  const file = await open(path, "r");
+  try {
+    const header = Buffer.alloc(12);
+    const { bytesRead } = await file.read(header, 0, 12, 0);
+    validateUpload(header.subarray(0, bytesRead), "video/mp4");
+  } finally {
+    await file.close();
+  }
+  const ffprobePath = await availableFfprobePath();
+  let result;
+  try {
+    result = await promisify(execFile)(
+      ffprobePath,
+      [
+        "-protocol_whitelist",
+        "file,pipe",
+        "-v",
+        "error",
+        "-show_streams",
+        "-show_frames",
+        "-show_entries",
+        "frame=media_type,best_effort_timestamp_time:stream:format",
+        "-show_format",
+        "-of",
+        "json",
+        path,
+      ],
+      { timeout: 30000, maxBuffer: 2000000, signal },
+    );
+  } catch (error) {
+    // Spawn errors have string errno codes; a running FFprobe's numeric exit
+    // code indicates invalid media and retains the existing validation error.
+    if (typeof (error as NodeJS.ErrnoException).code === "string")
+      throw new FfprobeUnavailableError();
+    throw Error(
+      "Unable to read a valid standalone MP4. Re-export and try again.",
+    );
+  }
+  let metadata;
+  try {
+    metadata = JSON.parse(result.stdout);
+  } catch {
+    throw Error("Commercial metadata could not be validated");
+  }
+  return validateVideoMetadata(metadata);
 }

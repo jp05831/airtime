@@ -1,13 +1,15 @@
+const ffprobeFiles = [
+  "./node_modules/@ffprobe-installer/linux-x64/**/*",
+  "./node_modules/@ffprobe-installer/ffprobe/**/*",
+];
 export default {
   poweredByHeader: false,
   devIndicators: false,
   distDir: process.env.NODE_ENV === "development" ? ".next-dev" : ".next",
   outputFileTracingIncludes: {
-    "/api/creator/upload": [
-      // The installer resolves both the executable and package metadata at runtime.
-      "./node_modules/@ffprobe-installer/linux-x64/**/*",
-      "./node_modules/@ffprobe-installer/ffprobe/**/*",
-    ],
+    "/api/creator/upload": ffprobeFiles,
+    "/api/creator/upload/finalize": ffprobeFiles,
+    "/api/worker": ffprobeFiles,
   },
   serverExternalPackages: ["pg", "@ffprobe-installer/ffprobe"],
   async headers() {
