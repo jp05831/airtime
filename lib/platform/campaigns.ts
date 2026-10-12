@@ -23,7 +23,7 @@ export async function logOperation(
   c: Queryable = db(),
 ) {
   await c.query(
-    "INSERT INTO operations_audit(actor,action,entity_id,details) VALUES($1,$2,$3,$4)",
+    "INSERT INTO operations_audit(actor,action,entity_id,details,record_kind) VALUES($1,$2,$3,$4,CASE WHEN left($2,5)='TEST_' THEN 'TEST' ELSE 'NORMAL' END)",
     [actor, action, entity, JSON.stringify(details)],
   );
 }

@@ -1,5 +1,6 @@
 import { PublicKey } from "@solana/web3.js";
 import { address } from "@/lib/validation";
+import { HttpError } from "@/lib/server/http";
 import { required } from "@/lib/server/config";
 import { db } from "@/lib/server/db";
 export function platformConfig() {
@@ -61,4 +62,22 @@ export function validatePlatform() {
   ])
     required(name);
   platformConfig();
+  paymentSmokeEnabled();
+}
+
+export function paymentSmokeEnabled() {
+  const value = process.env.PAYMENT_SMOKE_TEST_ENABLED || "false";
+  if (!["true", "false"].includes(value))
+    throw Error("PAYMENT_SMOKE_TEST_ENABLED must be true or false");
+  return value === "true";
+}
+export function requirePaymentSmokeEnabled() {
+  if (!paymentSmokeEnabled()) {
+    throw new HttpError(404, "Payment smoke test is disabled");
+  }
+  if ((process.env.VIBE_LIVE_MODE || "false") !== "false")
+    throw new HttpError(
+      409,
+      "Payment smoke test requires VIBE_LIVE_MODE=false",
+    );
 }

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --hostname 127.0.0.1 --port 3200",
-    "build": "next build && npm run test:upload-bundle",
+    "build": "tsx scripts/check-payment-migration.ts && next build && npm run test:upload-bundle",
     "test:upload-bundle": "node --test tests/upload-bundle.test.mjs",
     "start": "next start --hostname 127.0.0.1 --port 3200",
     "test": "vitest run",

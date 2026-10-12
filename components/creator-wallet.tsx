@@ -2,8 +2,8 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Transaction } from "@solana/web3.js";
-import { Buffer } from "buffer";
 import bs58 from "bs58";
+import { signReviewedTransaction } from "@/lib/browser-wallet";
 import Link from "next/link";
 import { X, Wallet, ShieldCheck } from "lucide-react";
 import type { CreatorIdentity } from "@/lib/platform/model";
@@ -180,10 +180,7 @@ export function WalletProvider({
       throw Error(
         "Reconnect the authenticated wallet before approving a transaction.",
       );
-    const signed = await provider.current.signTransaction(
-      Transaction.from(Buffer.from(encoded, "base64")),
-    );
-    return signed.serialize().toString("base64");
+    return signReviewedTransaction(provider.current, encoded, identity.wallet);
   }
   return (
     <Context.Provider

@@ -15,7 +15,7 @@ import { officialEvents, PUMP, PUMP_AMM } from "@/lib/server/protocol";
 import { WSOL, ZERO } from "@/lib/accounting";
 import { verifyCoinAuthority, buildClaim, pda } from "./coins";
 import { logOperation, transition } from "./campaigns";
-import { platformAvailable } from "./config";
+import { platformAvailable, requirePaymentSmokeEnabled } from "./config";
 import { assertCreativeApproved } from "@/lib/vibe/review";
 import type { CreatorIdentity } from "./model";
 export const MEMO = new PublicKey(
@@ -24,15 +24,23 @@ export const MEMO = new PublicKey(
 export function invoiceMemo(id: string) {
   return "AIRTIME:" + id;
 }
+export type PaymentRail = "CAMPAIGN" | "TEST";
+const invoiceTable = (rail: PaymentRail) =>
+  rail === "TEST" ? "payment_test_invoices" : "campaign_invoices";
+const receiptTable = (rail: PaymentRail) =>
+  rail === "TEST" ? "payment_test_payments" : "campaign_payments";
 export async function ownedInvoice(
   identity: CreatorIdentity,
   id: string,
   lock = false,
   c = db() as any,
+  rail: PaymentRail = "CAMPAIGN",
 ) {
   const { rows } = await c.query(
-    `SELECT * FROM campaign_invoices WHERE id=$1 AND user_id=$2 ${lock ? "FOR UPDATE" : ""}`,
-    [id, identity.userId],
+    `SELECT * FROM ${invoiceTable(rail)} WHERE id=$1 AND ${rail === "TEST" ? "admin_id=$2 AND creator_wallet=$3" : "user_id=$2"} ${lock ? "FOR UPDATE" : ""}`,
+    rail === "TEST"
+      ? [id, identity.userId, identity.wallet]
+      : [id, identity.userId],
   );
   if (!rows[0]) throw new HttpError(404, "Invoice not found");
   return rows[0];
@@ -154,14 +162,19 @@ export async function preparePayment(
   identity: CreatorIdentity,
   id: string,
   conn: Connection = connection(),
+  rail: PaymentRail = "CAMPAIGN",
 ) {
   await platformAvailable();
-  const invoice = await ownedInvoice(identity, id);
-  if (invoice.product_version !== 2)
+  if (rail === "TEST") requirePaymentSmokeEnabled();
+  const invoice = await ownedInvoice(identity, id, false, db(), rail);
+  if (rail === "CAMPAIGN" && invoice.product_version !== 2)
     throw new HttpError(409, "Historical invoices cannot be paid");
-  await assertCreativeApproved(invoice.campaign_id, identity.userId);
+  if (rail === "CAMPAIGN")
+    await assertCreativeApproved(invoice.campaign_id, identity.userId);
   if (new Date(invoice.expires_at).getTime() <= Date.now())
     throw new HttpError(409, "Payment quote expired");
+  if ((await conn.getGenesisHash()) !== GENESIS)
+    throw new HttpError(503, "Mainnet RPC required");
   const tx = new Transaction({ feePayer: new PublicKey(identity.wallet) });
   tx.add(
     SystemProgram.transfer({
@@ -180,7 +193,7 @@ export async function preparePayment(
   const block = await conn.getLatestBlockhash("finalized");
   tx.recentBlockhash = block.blockhash;
   return transaction(async (c) => {
-    const current = await ownedInvoice(identity, id, true, c);
+    const current = await ownedInvoice(identity, id, true, c, rail);
     if (new Date(current.expires_at).getTime() <= Date.now())
       throw new HttpError(409, "Payment quote expired");
     if (current.status !== "OPEN" || current.broadcast_signature)
@@ -197,12 +210,12 @@ export async function preparePayment(
     }
     const msg = tx.serializeMessage().toString("base64");
     await c.query(
-      "UPDATE campaign_invoices SET prepared_message=$2,prepared_blockheight=$3,prepared_at=now() WHERE id=$1",
+      `UPDATE ${invoiceTable(rail)} SET prepared_message=$2,prepared_blockheight=$3,prepared_at=now() WHERE id=$1`,
       [id, msg, block.lastValidBlockHeight],
     );
     return {
       id,
-      kind: "PAYMENT",
+      kind: rail === "TEST" ? "TEST" : "PAYMENT",
       transaction: tx
         .serialize({ requireAllSignatures: false, verifySignatures: false })
         .toString("base64"),
@@ -246,11 +259,14 @@ export async function prepareClaim(
 export async function broadcastSigned(
   identity: CreatorIdentity,
   id: string,
-  kind: "PAYMENT" | "CLAIM",
+  kind: "PAYMENT" | "CLAIM" | "TEST",
   encoded: string,
   conn: Connection = connection(),
 ) {
   await platformAvailable();
+  if (kind === "TEST") requirePaymentSmokeEnabled();
+  const payment = kind !== "CLAIM",
+    rail: PaymentRail = kind === "TEST" ? "TEST" : "CAMPAIGN";
   const bytes = Buffer.from(encoded, "base64");
   if (bytes.length > 1232) throw new HttpError(400, "Transaction too large");
   let tx: Transaction;
@@ -261,22 +277,24 @@ export async function broadcastSigned(
   }
   if (tx.feePayer?.toBase58() !== identity.wallet || !tx.verifySignatures())
     throw new HttpError(403, "Wallet signature invalid");
-  if (kind === "PAYMENT") {
-    const invoice = await ownedInvoice(identity, id);
-    await assertCreativeApproved(invoice.campaign_id, identity.userId);
+  if (payment) {
+    const invoice = await ownedInvoice(identity, id, false, db(), rail);
+    if (kind === "PAYMENT")
+      await assertCreativeApproved(invoice.campaign_id, identity.userId);
   }
   const signature = bs58.encode(tx.signature!);
   await transaction(async (c) => {
-    const table =
-      kind === "PAYMENT" ? "campaign_invoices" : "fee_claim_requests";
+    const table = payment ? invoiceTable(rail) : "fee_claim_requests";
     const row = (
       await c.query(
-        `SELECT * FROM ${table} WHERE id=$1 AND user_id=$2 FOR UPDATE`,
-        [id, identity.userId],
+        `SELECT * FROM ${table} WHERE id=$1 AND ${kind === "TEST" ? "admin_id=$2 AND creator_wallet=$3" : "user_id=$2"} FOR UPDATE`,
+        kind === "TEST"
+          ? [id, identity.userId, identity.wallet]
+          : [id, identity.userId],
       )
     ).rows[0];
     if (!row) throw new HttpError(404, "Transaction request not found");
-    const old = kind === "PAYMENT" ? row.broadcast_signature : row.signature;
+    const old = payment ? row.broadcast_signature : row.signature;
     if (old)
       throw new HttpError(
         409,
@@ -289,35 +307,40 @@ export async function broadcastSigned(
       );
     if (
       (await conn.getBlockHeight("finalized")) >
-      Number(kind === "PAYMENT" ? row.prepared_blockheight : row.blockheight)
+      Number(payment ? row.prepared_blockheight : row.blockheight)
     )
       throw new HttpError(409, "Prepared blockhash expired");
     if (
-      kind === "PAYMENT" &&
+      payment &&
       (row.status !== "OPEN" ||
         new Date(row.expires_at).getTime() <= Date.now())
     )
       throw new HttpError(409, "Payment quote expired");
-    await verifyCoinAuthority(identity.wallet, row.mint, conn);
-    if (kind === "PAYMENT") {
+    if ((await conn.getGenesisHash()) !== GENESIS)
+      throw new HttpError(503, "Mainnet RPC required");
+    if (kind !== "TEST")
+      await verifyCoinAuthority(identity.wallet, row.mint, conn);
+    if (payment) {
       await c.query(
-        "UPDATE campaign_invoices SET broadcast_signature=$2,status='VERIFYING' WHERE id=$1",
+        `UPDATE ${invoiceTable(rail)} SET broadcast_signature=$2,status='VERIFYING' WHERE id=$1`,
         [id, signature],
       );
-      const campaign = (
-        await c.query(
-          "SELECT status FROM ad_campaigns WHERE id=$1 FOR UPDATE",
-          [row.campaign_id],
-        )
-      ).rows[0];
-      await transition(
-        c,
-        row.campaign_id,
-        campaign.status,
-        "PAYMENT_VERIFYING",
-        identity.wallet,
-        "Signed payment submitted; awaiting finality",
-      );
+      if (kind === "PAYMENT") {
+        const campaign = (
+          await c.query(
+            "SELECT status FROM ad_campaigns WHERE id=$1 FOR UPDATE",
+            [row.campaign_id],
+          )
+        ).rows[0];
+        await transition(
+          c,
+          row.campaign_id,
+          campaign.status,
+          "PAYMENT_VERIFYING",
+          identity.wallet,
+          "Signed payment submitted; awaiting finality",
+        );
+      }
     } else
       await c.query(
         "UPDATE fee_claim_requests SET signature=$2,status='BROADCAST' WHERE id=$1",
@@ -325,11 +348,22 @@ export async function broadcastSigned(
       );
     await logOperation(
       identity.wallet,
-      "SIGNED_TRANSACTION",
+      kind === "TEST" ? "TEST_SIGNED_TRANSACTION" : "SIGNED_TRANSACTION",
       id,
-      { kind, signature },
+      { kind, signature, ...(kind === "TEST" ? { record_kind: "TEST" } : {}) },
       c,
     );
+    if (kind === "TEST")
+      await c.query(
+        "INSERT INTO webhook_events(signature,payload,record_kind) VALUES($1,$2,'TEST') ON CONFLICT(signature) DO UPDATE SET record_kind='TEST'",
+        [
+          signature,
+          JSON.stringify({
+            source: "SIGNED_TEST_TRANSACTION",
+            record_kind: "TEST",
+          }),
+        ],
+      );
   });
   // Persist signature before RPC. Never resubmit on ambiguous RPC failures or retry a payment.
   try {
@@ -353,27 +387,33 @@ export async function confirmPayment(
   id: string,
   signature: string,
   conn: Connection = connection(),
+  rail: PaymentRail = "CAMPAIGN",
 ) {
   const tx = await finalizedTransaction(signature, conn);
   const invoice = (
-    await db().query("SELECT * FROM campaign_invoices WHERE id=$1", [id])
+    await db().query(`SELECT * FROM ${invoiceTable(rail)} WHERE id=$1`, [id])
   ).rows[0];
   if (!invoice) throw new HttpError(404, "Invoice not found");
   const proof = verifyPaymentStructure(tx, invoice, true);
   return transaction(async (c) => {
     const i = (
-      await c.query("SELECT * FROM campaign_invoices WHERE id=$1 FOR UPDATE", [
-        id,
-      ])
+      await c.query(
+        `SELECT * FROM ${invoiceTable(rail)} WHERE id=$1 FOR UPDATE`,
+        [id],
+      )
     ).rows[0];
     const previous = (
       await c.query(
-        "SELECT invoice_id FROM campaign_payments WHERE signature=$1 OR invoice_id=$2",
+        "SELECT invoice_id,record_kind,signature FROM payment_rail_receipts WHERE signature=$1 OR invoice_id=$2",
         [signature, id],
       )
     ).rows[0];
     if (previous) {
-      if (previous.invoice_id !== id)
+      if (
+        previous.invoice_id !== id ||
+        previous.signature !== signature ||
+        previous.record_kind !== (rail === "TEST" ? "TEST" : "NORMAL")
+      )
         throw new HttpError(
           409,
           "Transaction already credited to another invoice",
@@ -385,7 +425,7 @@ export async function confirmPayment(
     if (i.broadcast_signature && i.broadcast_signature !== signature)
       throw new HttpError(409, "Invoice already has a submitted payment");
     await c.query(
-      "INSERT INTO campaign_payments(invoice_id,signature,creator_wallet,recipient_wallet,amount_lamports,status,slot,block_time,evidence) VALUES($1,$2,$3,$4,$5,'FINALIZED',$6,$7,$8)",
+      `INSERT INTO ${receiptTable(rail)}(invoice_id,signature,creator_wallet,recipient_wallet,amount_lamports,status,slot,block_time,evidence) VALUES($1,$2,$3,$4,$5,'FINALIZED',$6,$7,$8)`,
       [
         id,
         signature,
@@ -394,13 +434,31 @@ export async function confirmPayment(
         proof.amount.toString(),
         proof.slot,
         proof.blockTime,
-        JSON.stringify({ ...proof.evidence, transaction: tx }),
+        JSON.stringify({
+          ...proof.evidence,
+          ...(rail === "TEST" ? { record_kind: "TEST" } : {}),
+          transaction: tx,
+        }),
       ],
     );
     await c.query(
-      "UPDATE campaign_invoices SET status='PAID',broadcast_signature=$2 WHERE id=$1",
+      `UPDATE ${invoiceTable(rail)} SET status='PAID',broadcast_signature=$2 WHERE id=$1`,
       [id, signature],
     );
+    if (rail === "TEST") {
+      await logOperation(
+        i.admin_id,
+        "TEST_PAYMENT_FINALIZED",
+        id,
+        {
+          record_kind: "TEST",
+          signature,
+          amountLamports: proof.amount.toString(),
+        },
+        c,
+      );
+      return { status: "PAID", record_kind: "TEST" };
+    }
     const campaign = (
       await c.query("SELECT status FROM ad_campaigns WHERE id=$1 FOR UPDATE", [
         i.campaign_id,
@@ -555,11 +613,14 @@ export async function releaseExpiredQuote(
   identity: CreatorIdentity,
   campaignId: string,
   conn: Connection = connection(),
+  rail: PaymentRail = "CAMPAIGN",
 ) {
   const invoice = (
     await db().query(
-      "SELECT * FROM campaign_invoices WHERE campaign_id=$1 AND user_id=$2 AND status IN ('OPEN','VERIFYING')",
-      [campaignId, identity.userId],
+      `SELECT * FROM ${invoiceTable(rail)} WHERE ${rail === "TEST" ? "id=$1 AND admin_id=$2 AND creator_wallet=$3" : "campaign_id=$1 AND user_id=$2"} AND status IN ('OPEN','VERIFYING')`,
+      rail === "TEST"
+        ? [campaignId, identity.userId, identity.wallet]
+        : [campaignId, identity.userId],
     )
   ).rows[0];
   if (!invoice) throw new HttpError(404, "No open invoice");
@@ -583,7 +644,7 @@ export async function releaseExpiredQuote(
       })
     ).value[0];
     if (state && !state.err) {
-      await confirmPayment(invoice.id, invoice.broadcast_signature, conn);
+      await confirmPayment(invoice.id, invoice.broadcast_signature, conn, rail);
       return { status: "PAID" };
     }
     if (state && (state.confirmationStatus !== "finalized" || !state.err))
@@ -636,46 +697,52 @@ export async function releaseExpiredQuote(
               invoiceMemo(invoice.payment_reference || invoice.id),
         )
       ) {
-        await confirmPayment(invoice.id, item.signature, conn);
+        await confirmPayment(invoice.id, item.signature, conn, rail);
         return { status: "PAID" };
       }
     }
   }
   return transaction(async (c) => {
-    const locked = await ownedInvoice(identity, invoice.id, true, c);
+    const locked = await ownedInvoice(identity, invoice.id, true, c, rail);
     if (!["OPEN", "VERIFYING"].includes(locked.status))
       throw new HttpError(409, "Invoice changed. Refresh campaign.");
     if (
       (
-        await c.query("SELECT id FROM campaign_payments WHERE invoice_id=$1", [
-          invoice.id,
-        ])
+        await c.query(
+          `SELECT id FROM ${receiptTable(rail)} WHERE invoice_id=$1`,
+          [invoice.id],
+        )
       ).rows.length
     )
       throw new HttpError(409, "Payment already recorded");
     await c.query(
-      "UPDATE campaign_invoices SET status='CANCELLED' WHERE id=$1",
+      `UPDATE ${invoiceTable(rail)} SET status='CANCELLED' WHERE id=$1`,
       [invoice.id],
     );
-    const campaign = (
-      await c.query("SELECT status FROM ad_campaigns WHERE id=$1 FOR UPDATE", [
-        campaignId,
-      ])
-    ).rows[0];
-    if (campaign.status === "PAYMENT_VERIFYING")
-      await transition(
-        c,
-        campaignId,
-        "PAYMENT_VERIFYING",
-        "APPROVED_AWAITING_PAYMENT",
-        identity.wallet,
-        "Expired blockhash with no successful transaction; quote cancelled, no payment retried",
-      );
+    if (rail === "CAMPAIGN") {
+      const campaign = (
+        await c.query(
+          "SELECT status FROM ad_campaigns WHERE id=$1 FOR UPDATE",
+          [campaignId],
+        )
+      ).rows[0];
+      if (campaign.status === "PAYMENT_VERIFYING")
+        await transition(
+          c,
+          campaignId,
+          "PAYMENT_VERIFYING",
+          "APPROVED_AWAITING_PAYMENT",
+          identity.wallet,
+          "Expired blockhash with no successful transaction; quote cancelled, no payment retried",
+        );
+    }
     await logOperation(
       identity.wallet,
-      "EXPIRED_UNPAID_QUOTE_RELEASED",
+      rail === "TEST"
+        ? "TEST_EXPIRED_UNPAID_QUOTE_RELEASED"
+        : "EXPIRED_UNPAID_QUOTE_RELEASED",
       invoice.id,
-      {},
+      rail === "TEST" ? { record_kind: "TEST" } : {},
       c,
     );
     return {

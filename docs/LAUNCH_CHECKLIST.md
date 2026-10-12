@@ -3,7 +3,7 @@
 Creative approval first → customer payment second → campaign activation third. No real publication, SOL transfer or advertising spend was performed during implementation.
 
 - [ ] Revoke the historical exposed credential; create a replacement OAuth client through the official Vibe developer dashboard. Never reuse or paste the old credential.
-- [ ] Create Supabase/Postgres and run migrations 001 → 002 → 003 → 004 → 005 → 006 → 007. Preserve existing data and keep RLS enabled.
+- [ ] Create Supabase/Postgres and run migrations 001 → 002 → 003 → 004 → 005 → 006 → 007 → 008. Preserve existing data and keep RLS enabled.
 - [ ] Configure `DATABASE_URL` with the Supabase session pooler hostname on port 5432 and `sslmode=verify-full`; download the project CA certificate, base64-encode the PEM, and set it as `DATABASE_CA_CERT_BASE64` in Vercel. Production refuses direct/transaction-pooler URLs and verifies the TLS CA and hostname.
 - [ ] Apply upload migration 006 before redeploying. Configure private storage for the declared maximum size and test direct signed upload plus finalize with a production wallet session; the Vercel finalize function includes the bundled static FFprobe binary. Set `FFPROBE_PATH` only if intentionally overriding it.
 - [ ] Configure APP_ORIGIN, server-only database/auth/storage secrets and allowlisted administrator with TOTP AAL2.
@@ -26,3 +26,5 @@ Creative approval first → customer payment second → campaign activation thir
 - [ ] Monitor review failures, unpaid/expired quotes, failed provisioning, UNKNOWN operations, account billing balance, worker freshness and settlement discrepancies.
 - [ ] Reconcile customer SOL receipts and Vibe delivered-spend billing separately; record operator-side conversion/funding evidence.
 - [ ] Rehearse recovery/refund review and emergency rollback: set VIBE_LIVE_MODE=false, separately PAUSE active strategies, preserve all receipts/audit history.
+
+- [ ] Keep PAYMENT_SMOKE_TEST_ENABLED=false by default. If testing the production payment rail, apply migration 008 first, keep VIBE_LIVE_MODE=false, then use the admin/2FA $1 [TEST flow](PAYMENT_SMOKE_TEST.md) with explicit wallet approval. It transfers real SOL and is not automatically refunded. Disable the smoke switch afterward.

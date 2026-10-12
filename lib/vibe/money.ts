@@ -41,12 +41,21 @@ export function decimalUnits(value: unknown, decimals: number): bigint {
     power >= 0 ? raw * 10n ** BigInt(power) : raw / 10n ** BigInt(-power);
   return m[1] ? -scaled : scaled;
 }
+export function quoteLamports(totalCents: bigint, priceMicros: bigint) {
+  if (priceMicros <= 0n || totalCents <= 0n)
+    throw Error("Invalid SOL price or amount");
+  const lamports =
+    (totalCents * 10000000000000n + priceMicros - 1n) / priceMicros;
+  if (lamports > BigInt(Number.MAX_SAFE_INTEGER))
+    throw Error("Invoice too large");
+  return lamports;
+}
 export function fixedInvoiceAmounts(priceMicros: bigint) {
   if (priceMicros <= 0n) throw Error("Invalid SOL price");
   const media = 5000n,
     fee = 1000n,
     total = 6000n,
-    lamports = (total * 10000000000000n + priceMicros - 1n) / priceMicros;
+    lamports = quoteLamports(total, priceMicros);
   if (lamports > BigInt(Number.MAX_SAFE_INTEGER))
     throw Error("Invoice too large");
   return { media, fee, total, lamports };

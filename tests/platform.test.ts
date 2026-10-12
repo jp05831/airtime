@@ -206,6 +206,7 @@ import {
   broadcastSigned,
   verifyPaymentStructure,
   confirmPayment,
+  releaseExpiredQuote,
   ownedInvoice,
   invoiceMemo,
   MEMO,
@@ -649,6 +650,9 @@ beforeAll(async () => {
       "utf8",
     ),
   );
+  await store.db.exec(
+    await readFile("supabase/migrations/008_payment_smoke_test.sql", "utf8"),
+  );
   await store.db.exec("COMMIT; SET search_path=airtime,public");
 });
 afterAll(async () => store.db.close());
@@ -661,7 +665,7 @@ beforeEach(async () => {
   store.downloadOverrides.clear();
   store.removeFails = store.copyFails = false;
   await store.db.exec(
-    "TRUNCATE platform_users,wallet_auth_challenges,platform_coins,operations_audit,sol_price_snapshots,webhook_events,rate_limits,admin_users CASCADE",
+    "TRUNCATE platform_users,wallet_auth_challenges,platform_coins,operations_audit,sol_price_snapshots,webhook_events,rate_limits,admin_users,payment_rail_references CASCADE",
   );
   await q("UPDATE settings SET config=$1", [JSON.stringify({})]);
   await q(
@@ -675,6 +679,7 @@ beforeEach(async () => {
     TOTAL_CAMPAIGN_PRICE_CENTS: "6000",
     SOL_QUOTE_TTL_SECONDS: "300",
     VIBE_LIVE_MODE: "true",
+    PAYMENT_SMOKE_TEST_ENABLED: "false",
     VIBE_ACCOUNT_ID: "123",
     VIBE_CLIENT_ID: "fixture",
     VIBE_CLIENT_SECRET: "fixture",
@@ -753,7 +758,7 @@ describe("Forward-only platform migration", () => {
         "SELECT relname,relrowsecurity FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='airtime' AND relkind='r'",
       )
     ).rows;
-    expect(tables).toHaveLength(47);
+    expect(tables).toHaveLength(51);
     expect(tables.every((t) => t.relrowsecurity)).toBe(true);
   });
 });
@@ -1730,6 +1735,566 @@ describe("Creative, targeting and payment worker", () => {
             method: "POST",
             headers: { authorization: process.env.HELIUS_WEBHOOK_SECRET! },
             body: "{}",
+          }),
+        )
+      ).status,
+    ).toBe(400);
+  });
+});
+
+describe("Admin-only TEST mainnet payment rail", () => {
+  beforeEach(() => {
+    process.env.PAYMENT_SMOKE_TEST_ENABLED = "true";
+    process.env.VIBE_LIVE_MODE = "false";
+    process.env.DATABASE_URL = "mock-test-database";
+  });
+  async function quote(wallet = a.wallet) {
+    const { quotePaymentSmoke } = await import("@/lib/platform/payment-smoke");
+    const result = await quotePaymentSmoke(admin, wallet);
+    return (
+      await q("SELECT * FROM payment_test_invoices WHERE id=$1", [
+        result.invoice.id,
+      ])
+    ).rows[0];
+  }
+  async function adminRequest(payload?: unknown, aal = "aal2", id = admin) {
+    const auth = await import("@/lib/server/auth");
+    const access =
+      "header." +
+      Buffer.from(
+        JSON.stringify({
+          aal,
+          sub: id,
+          exp: Math.floor(Date.now() / 1000) + 3600,
+        }),
+      ).toString("base64url") +
+      ".signature";
+    const original = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation(async (input, init) =>
+      String(input).includes("/auth/v1/user")
+        ? Response.json({ id, email: "admin@example.com" })
+        : original(input, init),
+    );
+    return new NextRequest("http://localhost:3200/api/admin/payment-smoke", {
+      method: payload ? "POST" : "GET",
+      headers: {
+        origin: "http://localhost:3200",
+        cookie:
+          "airtime_admin=" +
+          auth.seal({ access, expires: Date.now() + 3600000 }),
+        "Content-Type": "application/json",
+      },
+      ...(payload ? { body: JSON.stringify(payload) } : {}),
+    });
+  }
+  it("requires the real admin session, provisioned admin and completed two-factor authentication", async () => {
+    const route = await import("@/app/api/admin/payment-smoke/route");
+    expect((await route.GET(request("/api/admin/payment-smoke"))).status).toBe(
+      401,
+    );
+    expect(
+      (
+        await route.POST(
+          await adminRequest({ action: "quote", wallet: a.wallet }, "aal1"),
+        )
+      ).status,
+    ).toBe(403);
+    expect(
+      (await route.GET(await adminRequest(undefined, "aal2", randomUUID())))
+        .status,
+    ).toBe(403);
+    expect(
+      (
+        await route.POST(
+          await adminRequest({ action: "quote", wallet: a.wallet }),
+        )
+      ).status,
+    ).toBe(200);
+    expect(
+      (
+        await route.POST(
+          await adminRequest({ action: "quote", wallet: a.wallet, total: 1 }),
+        )
+      ).status,
+    ).toBe(400);
+  });
+  it("defaults disabled and requires VIBE_LIVE_MODE=false without affecting audit reads", async () => {
+    const { quotePaymentSmoke, paymentSmokeState } =
+      await import("@/lib/platform/payment-smoke");
+    delete process.env.PAYMENT_SMOKE_TEST_ENABLED;
+    await expect(quotePaymentSmoke(admin, a.wallet)).rejects.toMatchObject({
+      status: 404,
+    });
+    expect((await paymentSmokeState(admin)).enabled).toBe(false);
+    process.env.PAYMENT_SMOKE_TEST_ENABLED = "true";
+    process.env.VIBE_LIVE_MODE = "true";
+    await expect(quotePaymentSmoke(admin, a.wallet)).rejects.toMatchObject({
+      status: 409,
+    });
+  });
+  it("quotes exactly $1 using production price and ceil conversion, zero media/revenue, five minutes, unique global reference and one open invoice", async () => {
+    const { quoteLamports } = await import("@/lib/vibe/money");
+    const i = await quote();
+    expect(String(i.total_usd_cents)).toBe("100");
+    expect(BigInt(i.required_lamports)).toBe(
+      quoteLamports(100n, BigInt(i.price_usd_micros)),
+    );
+    expect(
+      new Date(i.expires_at).getTime() - new Date(i.created_at).getTime(),
+    ).toBe(300000);
+    expect(i).toMatchObject({
+      record_kind: "TEST",
+      recipient_wallet: process.env.CAMPAIGN_PAYMENT_WALLET,
+    });
+    expect(String(i.media_budget_cents)).toBe("0");
+    expect(String(i.platform_fee_cents)).toBe("0");
+    expect((await quote()).id).toBe(i.id);
+    await expect(quote(b.wallet)).rejects.toMatchObject({ status: 409 });
+    expect(
+      (
+        await q("SELECT * FROM payment_rail_references WHERE invoice_id=$1", [
+          i.id,
+        ])
+      ).rows[0].record_kind,
+    ).toBe("TEST");
+    await expect(
+      q("UPDATE payment_test_invoices SET total_usd_cents=6000 WHERE id=$1", [
+        i.id,
+      ]),
+    ).rejects.toThrow();
+    await expect(
+      q("DELETE FROM payment_test_invoices WHERE id=$1", [i.id]),
+    ).rejects.toThrow("immutable");
+  });
+  it("rate-limits TEST invoice creation and rejects recipient-as-payer", async () => {
+    const route = await import("@/app/api/admin/payment-smoke/route");
+    for (let n = 0; n < 3; n++)
+      expect(
+        (
+          await route.POST(
+            await adminRequest({ action: "quote", wallet: a.wallet }),
+          )
+        ).status,
+      ).toBe(200);
+    expect(
+      (
+        await route.POST(
+          await adminRequest({ action: "quote", wallet: a.wallet }),
+        )
+      ).status,
+    ).toBe(429);
+    const { quotePaymentSmoke } = await import("@/lib/platform/payment-smoke");
+    await expect(
+      quotePaymentSmoke(admin, process.env.CAMPAIGN_PAYMENT_WALLET!),
+    ).rejects.toMatchObject({ status: 403 });
+  });
+  it("uses the shared prepare, signed-message validation and broadcaster; persists once and never rebroadcasts an ambiguous RPC result", async () => {
+    const i = await quote(),
+      identity = { userId: admin, wallet: a.wallet };
+    const prepared = await preparePayment(
+      identity,
+      i.id,
+      store.connection,
+      "TEST",
+    );
+    const tx = Transaction.from(Buffer.from(prepared.transaction, "base64"));
+    expect(tx.instructions).toHaveLength(2);
+    tx.sign(owner);
+    store.connection.sendRawTransaction.mockRejectedValueOnce(
+      Error("RPC timeout"),
+    );
+    const result = await broadcastSigned(
+      identity,
+      i.id,
+      "TEST",
+      tx.serialize().toString("base64"),
+      store.connection,
+    );
+    expect(result.status).toBe("CONFIRMATION_UNKNOWN");
+    await expect(
+      broadcastSigned(
+        identity,
+        i.id,
+        "TEST",
+        tx.serialize().toString("base64"),
+        store.connection,
+      ),
+    ).rejects.toThrow("already submitted");
+    expect(store.connection.sendRawTransaction).toHaveBeenCalledTimes(1);
+    const { paymentSmokeState } = await import("@/lib/platform/payment-smoke");
+    expect((await paymentSmokeState(admin)).invoices[0].phase).toBe(
+      "Broadcast",
+    );
+    expect((await q("SELECT * FROM ad_campaigns")).rows).toHaveLength(0);
+  });
+  it("rejects changed instructions, wrong wallet signatures and non-mainnet RPC before broadcasting", async () => {
+    const i = await quote(),
+      identity = { userId: admin, wallet: a.wallet };
+    const prepared = await preparePayment(
+      identity,
+      i.id,
+      store.connection,
+      "TEST",
+    );
+    const changed = Transaction.from(
+      Buffer.from(prepared.transaction, "base64"),
+    );
+    changed.instructions[1].data = Buffer.from("wrong");
+    changed.sign(owner);
+    await expect(
+      broadcastSigned(
+        identity,
+        i.id,
+        "TEST",
+        changed.serialize().toString("base64"),
+        store.connection,
+      ),
+    ).rejects.toMatchObject({ status: 403 });
+    const wrong = Transaction.from(Buffer.from(prepared.transaction, "base64"));
+    wrong.feePayer = other.publicKey;
+    wrong.sign(other);
+    await expect(
+      broadcastSigned(
+        identity,
+        i.id,
+        "TEST",
+        wrong
+          .serialize({ requireAllSignatures: false, verifySignatures: false })
+          .toString("base64"),
+        store.connection,
+      ),
+    ).rejects.toMatchObject({ status: 403 });
+    const signed = Transaction.from(
+      Buffer.from(prepared.transaction, "base64"),
+    );
+    signed.sign(owner);
+    store.connection.getGenesisHash.mockResolvedValue("devnet");
+    await expect(
+      broadcastSigned(
+        identity,
+        i.id,
+        "TEST",
+        signed.serialize().toString("base64"),
+        store.connection,
+      ),
+    ).rejects.toMatchObject({ status: 503 });
+    expect(store.connection.sendRawTransaction).not.toHaveBeenCalled();
+  });
+  it.each([
+    "recipient",
+    "amount",
+    "memo",
+    "payer",
+    "extra",
+    "window",
+    "failed",
+    "unfinalized",
+  ])("rejects TEST proof with wrong %s", async (failure) => {
+    const i = await quote();
+    const tx = paymentTx(i, {
+      ...(failure === "recipient" ? { to: b.wallet } : {}),
+      ...(failure === "amount"
+        ? { amount: BigInt(i.required_lamports) + 1n }
+        : {}),
+      ...(failure === "memo" ? { memo: "AIRTIME:" + randomUUID() } : {}),
+      ...(failure === "payer" ? { from: other } : {}),
+      ...(failure === "extra" ? { extra: true } : {}),
+      ...(failure === "window"
+        ? { blockTime: Math.floor(new Date(i.expires_at).getTime() / 1000) + 1 }
+        : {}),
+    });
+    if (failure === "failed")
+      tx.meta!.err = { InstructionError: [0, "Custom"] };
+    if (failure === "unfinalized")
+      store.connection.getSignatureStatuses.mockResolvedValue({
+        value: [{ confirmationStatus: "confirmed", err: null }],
+      });
+    store.connection.getTransaction.mockResolvedValue(tx);
+    await expect(
+      confirmPayment(
+        i.id,
+        tx.transaction.signatures[0],
+        store.connection,
+        "TEST",
+      ),
+    ).rejects.toMatchObject({ status: 409 });
+    expect((await q("SELECT * FROM payment_test_payments")).rows).toHaveLength(
+      0,
+    );
+  });
+  it("finalizes TEST exactly once after disable, preserves immutable audit and cannot enter campaign, revenue, provisioning or media settlement", async () => {
+    const real = await campaign(),
+      before = (await q("SELECT status FROM ad_campaigns WHERE id=$1", [real]))
+        .rows[0].status;
+    const i = await quote(),
+      tx = paymentTx(i),
+      sig = tx.transaction.signatures[0];
+    store.connection.getTransaction.mockResolvedValue(tx);
+    process.env.PAYMENT_SMOKE_TEST_ENABLED = "false";
+    expect(
+      await confirmPayment(i.id, sig, store.connection, "TEST"),
+    ).toMatchObject({ status: "PAID", record_kind: "TEST" });
+    expect(
+      await confirmPayment(i.id, sig, store.connection, "TEST"),
+    ).toMatchObject({ duplicate: true });
+    const rows = (await q("SELECT * FROM payment_test_payments")).rows;
+    expect(rows).toHaveLength(1);
+    expect(rows[0].record_kind).toBe("TEST");
+    expect(
+      (
+        await q(
+          "SELECT record_kind FROM payment_rail_receipts WHERE signature=$1",
+          [sig],
+        )
+      ).rows,
+    ).toEqual([{ record_kind: "TEST" }]);
+    for (const table of [
+      "campaign_invoices",
+      "campaign_payments",
+      "campaign_settlements",
+      "campaign_provisioning",
+      "vibe_campaigns",
+      "vibe_strategies",
+    ])
+      expect((await q("SELECT * FROM " + table)).rows).toHaveLength(0);
+    expect(
+      (await q("SELECT status FROM ad_campaigns WHERE id=$1", [real])).rows[0]
+        .status,
+    ).toBe(before);
+    const { operationsState } = await import("@/lib/platform/operations");
+    expect((await operationsState()).financials.service_fee_cents).toBe("0");
+    await expect(
+      q(
+        "INSERT INTO campaign_provisioning(campaign_id,invoice_id) VALUES($1,$2)",
+        [real, i.id],
+      ),
+    ).rejects.toThrow();
+    await expect(
+      q(
+        "INSERT INTO campaign_settlements(invoice_id,campaign_id,customer_lamports,media_cents,service_fee_cents) VALUES($1,$2,$3,5000,1000)",
+        [i.id, real, String(i.required_lamports)],
+      ),
+    ).rejects.toThrow();
+    await expect(
+      confirmPayment(i.id, sig, store.connection),
+    ).rejects.toMatchObject({ status: 404 });
+    await expect(
+      preparePayment(a, i.id, store.connection),
+    ).rejects.toMatchObject({ status: 404 });
+    const { syncCampaign } = await import("@/lib/vibe/workflow");
+    await expect(syncCampaign(i.id)).rejects.toThrow();
+
+    await expect(
+      q("DELETE FROM payment_test_payments WHERE invoice_id=$1", [i.id]),
+    ).rejects.toThrow("immutable");
+    await expect(
+      q(
+        "UPDATE payment_test_payments SET amount_lamports=1 WHERE invoice_id=$1",
+        [i.id],
+      ),
+    ).rejects.toThrow("immutable");
+    const { paymentSmokeState } = await import("@/lib/platform/payment-smoke");
+    expect((await paymentSmokeState(admin)).invoices[0].phase).toBe(
+      "Finalized",
+    );
+    expect(
+      (
+        await q("SELECT * FROM operations_audit WHERE entity_id=$1", [i.id])
+      ).rows.every(
+        (r) => r.details.record_kind === "TEST" && r.record_kind === "TEST",
+      ),
+    ).toBe(true);
+  });
+  it("reconciles TEST signatures with the production worker and marks webhook evidence TEST", async () => {
+    const i = await quote(),
+      tx = paymentTx(i),
+      sig = tx.transaction.signatures[0];
+    store.connection.getTransaction.mockResolvedValue(tx);
+    await q("INSERT INTO webhook_events(signature,payload) VALUES($1,'{}')", [
+      sig,
+    ]);
+    const { processPlatformSignature } = await import("@/lib/platform/worker");
+    await processPlatformSignature(sig, store.connection);
+    expect(
+      (
+        await q(
+          "SELECT status,record_kind FROM webhook_events WHERE signature=$1",
+          [sig],
+        )
+      ).rows[0],
+    ).toEqual({ status: "CONFIRMED", record_kind: "TEST" });
+    expect((await q("SELECT * FROM campaign_payments")).rows).toHaveLength(0);
+  });
+  it("protects normal and TEST receipts from signature/reference reuse at the database boundary", async () => {
+    const normal = await paidCampaign(),
+      i = await quote();
+    await expect(
+      q(
+        "INSERT INTO payment_test_payments(invoice_id,signature,creator_wallet,recipient_wallet,amount_lamports,status,slot,block_time,evidence) VALUES($1,$2,$3,$4,$5,'FINALIZED',1,now(),'{}')",
+        [
+          i.id,
+          normal.tx.transaction.signatures[0],
+          a.wallet,
+          i.recipient_wallet,
+          String(i.required_lamports),
+        ],
+      ),
+    ).rejects.toThrow();
+    await expect(
+      q(
+        "INSERT INTO payment_test_invoices(admin_id,creator_wallet,recipient_wallet,payment_reference,price_usd_micros,price_source,price_fetched_at,required_lamports,status) VALUES($1,$2,$3,$4,100000000,'Test',now(),10000000,'EXPIRED')",
+        [admin, a.wallet, i.recipient_wallet, normal.invoice.payment_reference],
+      ),
+    ).rejects.toThrow();
+  });
+  it("safely expires unprepared TEST quotes and keeps prepared quotes blocked until shared recovery proves no landing", async () => {
+    const i = await quote(),
+      identity = { userId: admin, wallet: a.wallet };
+    await preparePayment(identity, i.id, store.connection, "TEST");
+    const clock = vi
+      .spyOn(Date, "now")
+      .mockReturnValue(new Date(i.expires_at).getTime() + 1000);
+    await expect(
+      releaseExpiredQuote(identity, i.id, store.connection, "TEST"),
+    ).rejects.toThrow("still land");
+    store.connection.getBlockHeight.mockResolvedValue(999999);
+    store.connection.getSignaturesForAddress.mockResolvedValue([]);
+    expect(
+      await releaseExpiredQuote(identity, i.id, store.connection, "TEST"),
+    ).toMatchObject({ status: "CANCELLED" });
+    clock.mockRestore();
+    expect((await quote()).id).not.toBe(i.id);
+    expect((await q("SELECT * FROM payment_test_invoices")).rows).toHaveLength(
+      2,
+    );
+  });
+  it("completes the actual admin API and shared wallet-signing journey through Prepared, Broadcast, Confirming and Finalized", async () => {
+    const route = await import("@/app/api/admin/payment-smoke/route"),
+      { signReviewedTransaction } = await import("@/lib/browser-wallet");
+    const quoted = await route.POST(
+      await adminRequest({ action: "quote", wallet: a.wallet }),
+    );
+    const i = (await quoted.json()).invoice;
+    expect(quoted.status).toBe(200);
+    const prepared = await route.POST(
+      await adminRequest({ action: "prepare", id: i.id }),
+    );
+    expect(prepared.status).toBe(200);
+    const ready = await prepared.json();
+    const view = (await (await route.GET(await adminRequest())).json())
+      .invoices[0];
+    expect(view.phase).toBe("Prepared");
+    expect(view.transaction).toBe(ready.transaction);
+    const provider = {
+      publicKey: owner.publicKey,
+      signTransaction: vi.fn(async (tx: Transaction) => {
+        tx.sign(owner);
+        return tx;
+      }),
+    };
+    const encoded = await signReviewedTransaction(
+      provider,
+      ready.transaction,
+      a.wallet,
+    );
+    await expect(
+      signReviewedTransaction(provider, ready.transaction, b.wallet),
+    ).rejects.toThrow("reviewed payer");
+    const broadcast = await route.POST(
+      await adminRequest({
+        action: "broadcast",
+        id: i.id,
+        transaction: encoded,
+      }),
+    );
+    expect(broadcast.status).toBe(200);
+    const signed = Transaction.from(Buffer.from(encoded, "base64")),
+      sig = bs58.encode(signed.signature!);
+    expect((await broadcast.json()).status).toBe("BROADCAST");
+    expect(
+      (await (await route.GET(await adminRequest())).json()).invoices[0].phase,
+    ).toBe("Broadcast");
+    store.connection.getSignatureStatuses.mockResolvedValue({
+      value: [{ confirmationStatus: "confirmed", err: null }],
+    });
+    const waiting = await route.POST(
+      await adminRequest({ action: "verify", id: i.id, signature: sig }),
+    );
+    expect(await waiting.json()).toMatchObject({ phase: "Confirming" });
+    const proof = paymentTx(
+      (await q("SELECT * FROM payment_test_invoices WHERE id=$1", [i.id]))
+        .rows[0],
+    );
+    proof.transaction.message = signed.compileMessage();
+    proof.transaction.signatures = [sig];
+    store.connection.getSignatureStatuses.mockResolvedValue({
+      value: [{ confirmationStatus: "finalized", err: null }],
+    });
+    store.connection.getTransaction.mockResolvedValue(proof);
+    process.env.PAYMENT_SMOKE_TEST_ENABLED = "false";
+    const confirmed = await route.POST(
+      await adminRequest({ action: "verify", id: i.id, signature: sig }),
+    );
+    expect(confirmed.status).toBe(200);
+    expect(await confirmed.json()).toMatchObject({
+      phase: "Finalized",
+      record_kind: "TEST",
+    });
+    const finalState = await (await route.GET(await adminRequest())).json();
+    expect(finalState.enabled).toBe(false);
+    expect(finalState.invoices[0].phase).toBe("Finalized");
+    expect(finalState.warning).toContain("real mainnet SOL");
+    expect(finalState.warning).toContain("not automatically refunded");
+    expect(store.connection.sendRawTransaction).toHaveBeenCalledTimes(1);
+  });
+  it("expires abandoned unprepared TEST quotes through the worker without discarding their audit records", async () => {
+    const row = (
+      await q(
+        "INSERT INTO payment_test_invoices(admin_id,creator_wallet,recipient_wallet,price_usd_micros,price_source,price_fetched_at,required_lamports,created_at,expires_at) VALUES($1,$2,$3,100000000,'Fixture',now(),10000000,now()-interval '10 minutes',now()-interval '5 minutes') RETURNING *",
+        [admin, a.wallet, process.env.CAMPAIGN_PAYMENT_WALLET!],
+      )
+    ).rows[0];
+    await runPlatformSync(store.connection);
+    expect(
+      (
+        await q("SELECT status FROM payment_test_invoices WHERE id=$1", [
+          row.id,
+        ])
+      ).rows[0].status,
+    ).toBe("EXPIRED");
+    expect((await quote()).id).not.toBe(row.id);
+    expect((await q("SELECT * FROM payment_test_invoices")).rows).toHaveLength(
+      2,
+    );
+  });
+  it("holds production deployment for an incomplete payment migration or disabled TEST RLS", async () => {
+    const { verifyPaymentSchema } = await import("@/lib/server/payment-schema"),
+      { db } = await import("@/lib/server/db");
+    await expect(verifyPaymentSchema(db())).resolves.toBeUndefined();
+    await q("ALTER TABLE payment_test_invoices DISABLE ROW LEVEL SECURITY");
+    try {
+      await expect(verifyPaymentSchema(db())).rejects.toThrow("incomplete");
+    } finally {
+      await q("ALTER TABLE payment_test_invoices ENABLE ROW LEVEL SECURITY");
+    }
+  });
+  it("scopes TEST records to their admin and forbids creator endpoint access to the TEST rail", async () => {
+    const i = await quote(),
+      { smokeIdentity, paymentSmokeState } =
+        await import("@/lib/platform/payment-smoke");
+    await expect(smokeIdentity(randomUUID(), i.id)).rejects.toMatchObject({
+      status: 404,
+    });
+    expect((await paymentSmokeState(randomUUID())).invoices).toHaveLength(0);
+    const token = await session(a),
+      route = await import("@/app/api/creator/broadcast/route");
+    expect(
+      (
+        await route.POST(
+          request("/api/creator/broadcast", token, {
+            id: i.id,
+            kind: "TEST",
+            transaction: "x".repeat(30),
           }),
         )
       ).status,

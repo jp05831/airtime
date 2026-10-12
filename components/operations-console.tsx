@@ -1,4 +1,5 @@
 "use client";
+import PaymentSmokeTest from "./payment-smoke-test";
 import VibeOperations from "./vibe-operations";
 import { useState, useEffect, useCallback } from "react";
 import type { CreatorCampaign, CreatorInvoice } from "@/lib/platform/model";
@@ -144,6 +145,7 @@ export default function OperationsConsole() {
     );
   return (
     <div className="operations-console">
+      <PaymentSmokeTest />
       <VibeOperations />
       {error && (
         <p className="error-message" role="alert">

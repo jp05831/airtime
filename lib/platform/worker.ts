@@ -46,7 +46,25 @@ export async function processPlatformSignature(
         [invoiceId],
       )
     ).rows[0];
-    if (!invoice) throw Error("Unknown payment reference");
+    if (!invoice) {
+      const test = (
+        await db().query(
+          "SELECT id FROM payment_test_invoices WHERE payment_reference=$1",
+          [invoiceId],
+        )
+      ).rows[0];
+      if (!test) throw Error("Unknown payment reference");
+      await db().query(
+        "UPDATE webhook_events SET record_kind='TEST' WHERE signature=$1",
+        [signature],
+      );
+      await confirmPayment(test.id, signature, conn, "TEST");
+      await db().query(
+        "UPDATE webhook_events SET status='CONFIRMED',error=NULL,rpc_payload=$2 WHERE signature=$1",
+        [signature, JSON.stringify(tx)],
+      );
+      return;
+    }
     await confirmPayment(invoice.id, signature, conn);
     await db().query(
       "UPDATE webhook_events SET status='CONFIRMED',error=NULL,rpc_payload=$2 WHERE signature=$1",
@@ -99,6 +117,9 @@ export async function runPlatformSync(conn: Connection = connection()) {
     await lock.query(
       "UPDATE sync_state SET last_started_at=now() WHERE id=true",
     );
+    await lock.query(
+      "UPDATE payment_test_invoices SET status='EXPIRED' WHERE status='OPEN' AND expires_at<=now() AND prepared_message IS NULL",
+    );
     // Unprepared expired quotes cannot have a signed checkout transaction. Prepared quotes
     // remain reconcilable until their transaction/blockhash outcome is independently proven.
     await transaction(async (c) => {
@@ -147,10 +168,21 @@ export async function runPlatformSync(conn: Connection = connection()) {
       ? { ...cursor, pendingHead: head, before: entries.at(-1)?.signature }
       : { head: head || cursor.head };
     const pendingPayments = await lock.query(
-      "SELECT broadcast_signature signature FROM campaign_invoices WHERE status='VERIFYING' AND broadcast_signature IS NOT NULL UNION SELECT signature FROM fee_claim_requests WHERE status='BROADCAST'",
+      "SELECT broadcast_signature signature,'NORMAL' record_kind FROM campaign_invoices WHERE status='VERIFYING' AND broadcast_signature IS NOT NULL UNION SELECT signature,'NORMAL' record_kind FROM fee_claim_requests WHERE status='BROADCAST' UNION SELECT broadcast_signature signature,'TEST' record_kind FROM payment_test_invoices WHERE status='VERIFYING' AND broadcast_signature IS NOT NULL",
     );
-    for (const p of pendingPayments.rows)
-      await queue(p.signature, { source: "SIGNED_CAMPAIGN_TRANSACTION" });
+    for (const p of pendingPayments.rows) {
+      await queue(p.signature, {
+        source:
+          p.record_kind === "TEST"
+            ? "SIGNED_TEST_TRANSACTION"
+            : "SIGNED_CAMPAIGN_TRANSACTION",
+        record_kind: p.record_kind,
+      });
+      await lock.query(
+        "UPDATE webhook_events SET record_kind='TEST' WHERE signature=$1 AND EXISTS(SELECT 1 FROM payment_test_invoices WHERE broadcast_signature=$1)",
+        [p.signature],
+      );
+    }
     const { rows } = await lock.query(
       "SELECT signature FROM webhook_events WHERE status IN ('DETECTED','VERIFYING','FAILED') AND attempts<12 ORDER BY created_at LIMIT 1",
     );

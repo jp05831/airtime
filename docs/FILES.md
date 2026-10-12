@@ -158,3 +158,8 @@ Homepage/styles/metadata/social image, navigation/footer/root wallet provider; c
 - `vendor/pump/pump_fees.json`
 - `vercel.json`
 - `vitest.config.mts`
+
+- supabase/migrations/008_payment_smoke_test.sql: isolated TEST invoices/receipts and cross-rail reference/signature guards.
+- app/api/admin/payment-smoke/route.ts, lib/platform/payment-smoke.ts, components/payment-smoke-test.tsx: authenticated admin smoke test.
+- lib/browser-wallet.ts: shared reviewed wallet transaction signing.
+- lib/server/payment-schema.ts, scripts/check-payment-migration.ts: production migration readiness check.

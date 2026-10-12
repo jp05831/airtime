@@ -1,0 +1,19 @@
+# Admin mainnet payment smoke test
+
+This flow sends real mainnet SOL worth $1.00 at the issued quote, plus Solana network fees. It is not automatically refunded. It never submits a commercial, creates/activates a Vibe campaign, reserves media, records revenue, changes a customer campaign or enters normal billing totals.
+
+Apply forward-only migration 008_payment_smoke_test.sql with the existing migration runner before deploying. It creates four RLS-protected tables and backfills normal checkout reference/receipt registries atomically. Applied migrations 001–007 remain unchanged. The production Vercel build checks the tables, registry/receipt guards, singleton index and RLS; incomplete migration holds the previous production deployment. The build never applies a remote migration automatically.
+
+PAYMENT_SMOKE_TEST_ENABLED=false is the default. To run the test, keep VIBE_LIVE_MODE=false, configure the existing real CAMPAIGN_PAYMENT_WALLET, mainnet RPC and production price feed, and explicitly set PAYMENT_SMOKE_TEST_ENABLED=true in the server environment and redeploy. AIRTIME refuses new TEST quotes, preparation and broadcasts if either switch is incompatible. Disable the smoke switch and redeploy afterward; read-only verification, worker reconciliation and preserved TEST audit remain available.
+
+Sign in to /admin with the existing allowlisted, provisioned administrator and complete 2FA. The smoke test panel uses the same server session for every action, with mutation origin checks and rate limiting. Connect Phantom or Solflare as the test payer, create the fixed $1 quote and acknowledge the real-transfer warning. Review the recipient, exact lamports, five-minute expiry and unique reference; prepare and explicitly sign the transaction in the wallet. Connecting a payer does not submit a transfer or require a creator account.
+
+The shared production transaction builder creates exactly a native SOL transfer and AIRTIME invoice memo. The shared wallet signer, reviewed-message comparison, durable signature persistence, broadcaster, mainnet check, finalized transaction loader, exact signer/recipient/reference/amount proof and recovery implementation are also used by $60 checkout. RPC submission uses no automatic rebroadcast. After an ambiguous submission, check the original signature instead of sending another payment.
+
+The panel exposes Prepared, Broadcast, Confirming and Finalized states and a mainnet Solana Explorer link. Worker reconciliation discovers TEST references in the same payment-wallet history and signed-signature queue. Only finalized successful transactions with exact recipient credit within the quote window can produce a TEST receipt.
+
+payment_test_invoices and payment_test_payments have mandatory record_kind=TEST, zero media/fee allocation, fixed 100-cent price and immutable audit identity. TEST invoices have no campaign/coin/creative relation. The global reference and signature registries explicitly label NORMAL or TEST records and prevent reuse across rails. TEST operation audit and webhook evidence are labeled TEST. Shared market-price snapshots and physical wallet-balance snapshots remain shared infrastructure; they are not customer billing or revenue.
+
+A partial unique index permits only one OPEN/VERIFYING TEST invoice globally. Quote creation is limited to three calls per administrator per minute. Unprepared abandoned quotes expire normally; prepared quotes remain blocked until the shared expired-blockhash/payment-history recovery proves no successful payment or finds and finalizes the original one. Paid TEST invoices, receipts, registries and audit evidence cannot be deleted or rewritten. There is no automatic refund action.
+
+Tests use mocked RPC and signing fixtures, real ephemeral PostgreSQL constraints and the actual admin session/2FA middleware. They do not broadcast a real mainnet transfer. A production test requires an administrator's explicit wallet approval.
