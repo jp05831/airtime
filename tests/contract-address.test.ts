@@ -33,6 +33,10 @@ function render(value?: string) {
   );
 }
 describe("AIRTIME contract address", () => {
+  it("accepts the announced AIRTIME launch mint", () => {
+    const launchMint = "EfokqPwaen38iWAVok7TEA3dVzZ5VaNtWGwTgomVpump";
+    expect(tokenMint(launchMint)).toBe(launchMint);
+  });
   it.each([undefined, "", "   "])(
     "shows coming at launch for blank configuration %s",
     (value) => {
