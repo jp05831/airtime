@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Check, Copy, Coins } from "lucide-react";
 
 export function ContractAddress({ address }: { address: string | null }) {
   const [copied, setCopied] = useState(false);
@@ -31,6 +32,9 @@ export function ContractAddress({ address }: { address: string | null }) {
       className="contract-address"
       aria-labelledby="contract-address-heading"
     >
+      <div className="contract-address-icon" aria-hidden="true">
+        <Coins size={24} strokeWidth={1.6} />
+      </div>
       <div className="contract-address-details">
         <h2 id="contract-address-heading">Contract Address</h2>
         {address ? (
@@ -51,7 +55,16 @@ export function ContractAddress({ address }: { address: string | null }) {
         )}
       </div>
       <div className="contract-address-actions">
-        <button className="button outline" disabled={!address} onClick={copy}>
+        <button
+          className="button contract-address-copy"
+          disabled={!address}
+          onClick={copy}
+        >
+          {copied ? (
+            <Check size={15} aria-hidden="true" />
+          ) : (
+            <Copy size={15} aria-hidden="true" />
+          )}
           {copied ? "Copied" : "Copy CA"}
         </button>
         {address && (

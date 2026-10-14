@@ -4092,53 +4092,125 @@ legend {
 
 .contract-address {
   position: relative;
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--space-5);
-  padding: var(--space-5);
-  border: var(--card-border);
-  border-radius: var(--panel-radius);
-  background: linear-gradient(110deg, #eff7ffeb, #c7f3ffcf);
-  box-shadow: var(--panel-shadow);
+  column-gap: 18px;
+  row-gap: var(--space-3);
+  padding: 26px 30px;
+  border: 1px solid #ffffffb3;
+  border-radius: 18px;
+  background: linear-gradient(110deg, #f5faffb8, #e3f8ff80);
+  box-shadow: 0 12px 32px #1644d80a, inset 0 1px 0 #ffffffb3;
+}
+.contract-address-icon {
+  display: grid;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  border: 1px solid #ffffffd9;
+  border-radius: 14px;
+  color: var(--blue);
+  background: linear-gradient(145deg, #fff9, #bdeeff80);
 }
 .contract-address-details {
   min-width: 0;
 }
 .contract-address h2 {
-  font-size: 16px;
-  letter-spacing: 0;
-  margin-bottom: var(--space-2);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #3b607f;
+  margin-bottom: 7px;
 }
 .contract-address-value {
   font-family: var(--mono);
   color: var(--blue);
   font-size: 14px;
+  line-height: 1.6;
   user-select: text;
 }
 .contract-address-pending {
-  color: var(--muted);
+  color: #173955;
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.4px;
+  line-height: 1.4;
 }
 .contract-address-actions {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-4);
-  font-size: 13px;
+  gap: 18px;
+  font-size: 12px;
+}
+.contract-address .contract-address-copy {
+  min-height: 40px;
+  min-width: 112px;
+  padding: 10px 15px;
+  border-color: #1644d8;
+  background: var(--blue);
+  color: white;
+  box-shadow: 0 4px 12px #1644d81a;
+}
+.contract-address .contract-address-copy:hover:not(:disabled) {
+  background: #1035b0;
+}
+.contract-address .contract-address-copy:disabled {
+  border-color: #33678c26;
+  background: #e2edf780;
+  color: #698298;
+  box-shadow: none;
+  opacity: 1;
+}
+.contract-address-actions .text-link {
+  color: #234d72;
+  white-space: nowrap;
+  text-underline-offset: 4px;
+}
+.contract-address-actions .text-link:hover {
+  color: var(--blue);
+  text-decoration: underline;
 }
 .contract-address-mobile {
   display: none;
 }
+.contract-address-status:empty {
+  display: none;
+}
 .contract-address-status:not(:empty) {
-  flex-basis: 100%;
+  grid-column: 2 / -1;
   color: var(--muted);
   font-size: 13px;
 }
+@media (max-width: 1100px) {
+  .contract-address-actions {
+    grid-column: 2 / -1;
+    flex-wrap: wrap;
+  }
+}
 @media (max-width: 640px) {
   .contract-address {
-    padding: var(--space-4);
-    gap: var(--space-4);
+    grid-template-columns: auto minmax(0, 1fr);
+    padding: 20px;
+    column-gap: 14px;
+    border-radius: 14px;
+  }
+  .contract-address-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+  }
+  .contract-address-actions {
+    grid-column: 1 / -1;
+    gap: 16px;
+    padding-top: 14px;
+    margin-top: 2px;
+    border-top: 1px solid #3b607f1a;
+  }
+  .contract-address-status:not(:empty) {
+    grid-column: 1 / -1;
   }
   .contract-address-full {
     display: none;
