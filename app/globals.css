@@ -4090,6 +4090,64 @@ legend {
   }
 }
 
+.contract-address {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  padding: var(--space-5);
+  border: var(--card-border);
+  border-radius: var(--panel-radius);
+  background: linear-gradient(110deg, #eff7ffeb, #c7f3ffcf);
+  box-shadow: var(--panel-shadow);
+}
+.contract-address-details {
+  min-width: 0;
+}
+.contract-address h2 {
+  font-size: 16px;
+  letter-spacing: 0;
+  margin-bottom: var(--space-2);
+}
+.contract-address-value {
+  font-family: var(--mono);
+  color: var(--blue);
+  font-size: 14px;
+  user-select: text;
+}
+.contract-address-pending {
+  color: var(--muted);
+}
+.contract-address-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  font-size: 13px;
+}
+.contract-address-mobile {
+  display: none;
+}
+.contract-address-status:not(:empty) {
+  flex-basis: 100%;
+  color: var(--muted);
+  font-size: 13px;
+}
+@media (max-width: 640px) {
+  .contract-address {
+    padding: var(--space-4);
+    gap: var(--space-4);
+  }
+  .contract-address-full {
+    display: none;
+  }
+  .contract-address-mobile {
+    display: inline;
+  }
+}
+
 /* A continuous editorial flow beneath the hero; shared application panels stay unchanged. */
 .homepage-flow {
   position: relative;

@@ -11,6 +11,8 @@ import {
 import { ConnectWallet } from "@/components/creator-wallet";
 import { platformConfig } from "@/lib/platform/config";
 import { dollars } from "@/lib/accounting";
+import { ContractAddress } from "@/components/contract-address";
+import { tokenMint } from "@/lib/token-mint";
 export const dynamic = "force-dynamic";
 export default function Home() {
   const config = platformConfig();
@@ -49,6 +51,7 @@ export default function Home() {
           />
         </div>
       </section>
+      <ContractAddress address={tokenMint(process.env.NEXT_PUBLIC_TOKEN_MINT)} />
       <div className="homepage-flow">
         <section id="how-it-works" className="section-block flow-how">
           <header className="flow-heading">

@@ -19,6 +19,8 @@ The existing platform now supports verified coin → private commercial → adul
 
 ## Fixed product
 
+The homepage contract-address section uses only `NEXT_PUBLIC_TOKEN_MINT`. Leave it blank before launch; blank or invalid Solana public keys show “Coming at launch” with copying disabled and trading links hidden. Set the full mint in the deployment environment and rebuild to publish it. This public setting does not configure campaign payments or wallet authentication.
+
 5000 cents media + 1000 cents service = 6000 cents paid in integer lamports. Quotes last 300 seconds. No editable budget, DAILY strategy or open-ended placement. Exactly one GLOBAL $50 strategy with a finite seven-day window is used. Creator-fee claiming and campaign payment require separate wallet approvals.
 
 Read [payments](docs/PAYMENTS.md) for finality, quote recovery, allocation and refunds; [operations](docs/OPERATIONS.md) for settlement, pause and failed-activation recovery.
